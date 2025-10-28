@@ -6,6 +6,8 @@ interface SettingsModalProps {
   sensitivity: number;
   onSensitivityChange: (value: number) => void;
   isConversationActive: boolean;
+  isTranscriptionEnabled: boolean;
+  onTranscriptionToggle: (isEnabled: boolean) => void;
 }
 
 const CloseIcon = () => (
@@ -15,7 +17,7 @@ const CloseIcon = () => (
 );
 
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, sensitivity, onSensitivityChange, isConversationActive }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, sensitivity, onSensitivityChange, isConversationActive, isTranscriptionEnabled, onTranscriptionToggle }) => {
   if (!isOpen) return null;
 
   const handleSensitivityChangeInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,12 +61,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                     />
                     <span className="font-semibold text-gray-700 w-12 text-center">{sensitivity.toFixed(1)}x</span>
                 </div>
-                {isConversationActive && (
-                    <p className="text-sm text-gray-500 mt-2">
-                        Les ajustements sont désactivés pendant une conversation.
-                    </p>
-                )}
             </div>
+            
+            <hr className="border-gray-200" />
+            
+             <div>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <label id="transcription-label" className="block text-md font-medium text-gray-700">
+                            Transcription en direct
+                        </label>
+                        <p className="text-sm text-gray-500">Afficher le texte de la conversation.</p>
+                    </div>
+                     <button
+                        type="button"
+                        onClick={() => onTranscriptionToggle(!isTranscriptionEnabled)}
+                        disabled={isConversationActive}
+                        className={`relative inline-flex flex-shrink-0 items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 disabled:opacity-50 disabled:cursor-not-allowed ${isTranscriptionEnabled ? 'bg-pink-600' : 'bg-gray-300'}`}
+                        aria-pressed={isTranscriptionEnabled}
+                        aria-labelledby="transcription-label"
+                    >
+                        <span className="sr-only">Activer la transcription</span>
+                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${isTranscriptionEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                </div>
+            </div>
+            
+             {isConversationActive && (
+                <p className="text-sm text-center text-gray-600 bg-gray-100 p-3 rounded-lg">
+                    Les ajustements sont désactivés pendant une conversation.
+                </p>
+            )}
             
             <div className="text-sm text-gray-600 bg-gray-100 p-3 rounded-lg">
                 <p>

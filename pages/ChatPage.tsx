@@ -42,6 +42,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
     const [currentInputTranscription, setCurrentInputTranscription] = useState('');
     const [isAiTyping, setIsAiTyping] = useState(false);
     const [micSensitivity, setMicSensitivity] = useState(1.0);
+    const [isTranscriptionEnabled, setIsTranscriptionEnabled] = useState(true);
     const [isEnding, setIsEnding] = useState(false);
     const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
 
@@ -82,39 +83,59 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
         ]);
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
-            const response: GenerateContentResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash-image',
-                contents: { parts: [{ text: prompt }] },
+    
+            // Amélioration du prompt pour des illustrations médicales de haute qualité
+            const enhancedPrompt = `Illustration médicale de style diagramme, scientifiquement exacte et clairement étiquetée de : ${prompt}. Fond neutre.`;
+    
+            const response = await ai.models.generateImages({
+                model: 'imagen-4.0-generate-001', // Modèle de plus haute qualité
+                prompt: enhancedPrompt,
                 config: {
-                    responseModalities: [Modality.IMAGE],
+                    numberOfImages: 1,
+                    outputMimeType: 'image/png', // PNG est souvent meilleur pour les diagrammes
+                    aspectRatio: '1:1',
                 },
             });
             
-            const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-            if (imagePart?.inlineData) {
-                const base64ImageBytes: string = imagePart.inlineData.data;
-                const imageUrl = `data:${imagePart.inlineData.mimeType};base64,${base64ImageBytes}`;
+            const base64ImageBytes = response.generatedImages?.[0]?.image?.imageBytes;
+    
+            if (base64ImageBytes) {
+                const imageUrl = `data:image/png;base64,${base64ImageBytes}`;
                 
                 setConversation(prev => {
-                    const newConversation = [...prev];
+                    // Filtre le message de statut et prépare la nouvelle conversation
+                    const newConversation = prev.filter(msg => !msg.id.startsWith('image-status-'));
                     const aiTurnIndex = newConversation.findIndex(msg => msg.id === turnId);
+                    
+                    // Si un message pour ce tour de l'IA existe déjà, ajoutez-y l'URL de l'image.
                     if (aiTurnIndex !== -1) {
                         newConversation[aiTurnIndex].imageUrl = imageUrl;
+                    } else {
+                        // Sinon, créez une nouvelle bulle de message juste pour l'image.
+                        // Le texte pourra être ajouté plus tard à la réception de `turnComplete`.
+                        newConversation.push({
+                            id: turnId,
+                            sender: Sender.AI,
+                            text: '', // Commence avec un texte vide
+                            imageUrl: imageUrl,
+                        });
                     }
-                    // remove status message
-                    return newConversation.filter(msg => !msg.id.startsWith('image-status-'));
+                    return newConversation;
                 });
-
+    
             } else {
-                 throw new Error("No image data returned from API.");
+                 throw new Error("Aucune donnée d'image retournée par l'API.");
             }
-
+    
         } catch (error) {
-            console.error('Image generation failed:', error);
-             setConversation(prev => [
-                ...prev,
-                { id: `image-error-${Date.now()}`, sender: Sender.System, text: `Échec de la génération de l'illustration. Veuillez réessayer.` }
-            ]);
+            console.error("La génération d'image a échoué:", error);
+             setConversation(prev => {
+                const conversationSansStatus = prev.filter(msg => !msg.id.startsWith('image-status-'));
+                return [
+                    ...conversationSansStatus,
+                    { id: `image-error-${Date.now()}`, sender: Sender.System, text: `Échec de la génération de l'illustration. Veuillez réessayer.` }
+                ];
+             });
         } finally {
              if (!isEndingRef.current) {
                 setStatus('LISTENING');
@@ -268,17 +289,22 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
             let tempInput = '';
             let tempOutput = '';
             let aiTurnId = '';
+            
+            const liveConfig: any = {
+                responseModalities: [Modality.AUDIO],
+                speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+                systemInstruction: "Vous êtes TerranoGyneco, un assistant médical IA de pointe spécialisé en gynécologie et médecine générale. Vous conversez avec un médecin professionnel. Votre rôle est d'écouter avec une extrême patience et attention. Laissez le médecin prendre tout le temps nécessaire pour formuler ses questions, même si elles sont longues, complexes ou s'il semble hésiter. S'il se corrige, tenez impérativement compte de la version la plus récente de sa pensée pour comprendre sa demande finale. Adoptez une attitude calme, posée et profondément humaine. Réfléchissez attentivement avant de répondre. Vos réponses doivent être d'une précision clinique irréprochable, détaillées, et toujours basées sur des données scientifiques et des preuves médicales actuelles. Soyez un partenaire de réflexion fiable et un expert. Lorsqu'on vous demande une illustration, un schéma ou une image, utilisez l'outil `generate_medical_illustration` pour créer un support visuel médicalement exact.",
+                tools: [{ functionDeclarations: [generateMedicalIllustrationFunction] }],
+            };
+
+            if (isTranscriptionEnabled) {
+                liveConfig.inputAudioTranscription = {};
+                liveConfig.outputAudioTranscription = {};
+            }
 
             sessionPromiseRef.current = ai.live.connect({
                 model: 'gemini-2.5-flash-native-audio-preview-09-2025',
-                config: {
-                    responseModalities: [Modality.AUDIO],
-                    speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
-                    systemInstruction: "Vous êtes TerranoGyneco, un assistant médical IA de pointe spécialisé en gynécologie. Vous conversez avec un gynécologue professionnel. Fournissez des réponses précises, détaillées et basées sur des preuves à leurs questions. Votre ton doit être professionnel, précis et collaboratif. Lorsqu'on vous demande une illustration ou une image, utilisez l'outil `generate_medical_illustration` pour créer une image médicalement précise pour appuyer votre explication.",
-                    inputAudioTranscription: {},
-                    outputAudioTranscription: {},
-                    tools: [{ functionDeclarations: [generateMedicalIllustrationFunction] }],
-                },
+                config: liveConfig,
                 callbacks: {
                     onopen: () => {
                         const source = audioContextRef.current!.createMediaStreamSource(mediaStreamRef.current!);
@@ -371,15 +397,26 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
                                 playingSourcesRef.current.add(sourceNode);
                             }
 
-                             if (message.serverContent.turnComplete) {
+                            if (message.serverContent.turnComplete) {
                                 setIsAiTyping(false);
                                 if (tempOutput.trim()) {
-                                    setConversation(prev => [...prev, { id: aiTurnId, sender: Sender.AI, text: tempOutput.trim() }]);
+                                    setConversation(prev => {
+                                        const newConversation = [...prev];
+                                        const aiTurnIndex = newConversation.findIndex(msg => msg.id === aiTurnId);
+                                        // Si un message IA pour ce tour existe déjà (par ex. pour une image), mettez à jour son texte.
+                                        if (aiTurnIndex !== -1) {
+                                            newConversation[aiTurnIndex].text = tempOutput.trim();
+                                        } else {
+                                            // Sinon, ajoutez un nouveau message.
+                                            newConversation.push({ id: aiTurnId, sender: Sender.AI, text: tempOutput.trim() });
+                                        }
+                                        return newConversation;
+                                    });
                                 }
                                 tempInput = '';
                                 tempOutput = '';
                                 setCurrentInputTranscription('');
-                                aiTurnId = '';
+                                aiTurnId = ''; // Réinitialiser pour le prochain tour
                             }
                         }
                         if (message.toolCall?.functionCalls) {
@@ -413,7 +450,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
             console.error('Échec du démarrage de la conversation:', error);
             setStatus('ERROR');
         }
-    }, [stopConversation, generateImage, generateMedicalIllustrationFunction, micSensitivity, endSessionPolitely]);
+    }, [stopConversation, generateImage, generateMedicalIllustrationFunction, micSensitivity, endSessionPolitely, isTranscriptionEnabled]);
     
     useEffect(() => {
         return () => {
@@ -467,6 +504,8 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
                 sensitivity={micSensitivity}
                 onSensitivityChange={handleSensitivityChange}
                 isConversationActive={isConversationActive}
+                isTranscriptionEnabled={isTranscriptionEnabled}
+                onTranscriptionToggle={setIsTranscriptionEnabled}
             />
             <HistoryPanel
                 isOpen={isHistoryOpen}
