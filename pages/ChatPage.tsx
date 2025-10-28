@@ -1,5 +1,3 @@
-
-
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, LiveSession, LiveServerMessage, Modality, Type, FunctionDeclaration, Blob, GenerateContentResponse } from '@google/genai';
 import { Header } from '../components/Header';
@@ -31,13 +29,18 @@ const STOP_PHRASES = [
 
 type Status = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING' | 'ERROR';
 
-const ChatPage: React.FC = () => {
+interface ChatPageProps {
+    isSettingsOpen: boolean;
+    setIsSettingsOpen: (isOpen: boolean) => void;
+    isHistoryOpen: boolean;
+    setIsHistoryOpen: (isOpen: boolean) => void;
+}
+
+const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, isHistoryOpen, setIsHistoryOpen }) => {
     const [status, setStatus] = useState<Status>('IDLE');
     const [conversation, setConversation] = useState<ChatMessage[]>([]);
     const [currentInputTranscription, setCurrentInputTranscription] = useState('');
     const [isAiTyping, setIsAiTyping] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const [micSensitivity, setMicSensitivity] = useState(1.0);
     const [isEnding, setIsEnding] = useState(false);
     const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
@@ -471,7 +474,7 @@ const ChatPage: React.FC = () => {
                 conversation={conversation}
             />
             <ImageZoomModal imageUrl={zoomedImageUrl} onClose={handleCloseZoom} />
-             <main className="flex-1 flex flex-col overflow-hidden relative" style={{backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1587327901593-3701363675a8')", backgroundSize: 'cover', backgroundPosition: 'center'}}>
+             <main className="flex-1 flex flex-col overflow-hidden relative z-0" style={{backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1587327901593-3701363675a8')", backgroundSize: 'cover', backgroundPosition: 'center'}}>
                 <ConversationView 
                     conversation={conversation} 
                     currentInputTranscription={currentInputTranscription} 

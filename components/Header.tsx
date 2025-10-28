@@ -35,15 +35,26 @@ const AdminIcon = () => (
     </svg>
 );
 
+const SettingsIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+    </svg>
+);
+
+const HistoryIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+);
+
 
 interface HeaderProps {
     onSettingsClick?: () => void;
     onHistoryClick?: () => void;
     navigate: (path: string) => void;
-    isChatPage?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onSettingsClick, onHistoryClick, navigate, isChatPage }) => {
+export const Header: React.FC<HeaderProps> = ({ onSettingsClick, onHistoryClick, navigate }) => {
     const { user, logout } = useAuth();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
   
@@ -60,11 +71,30 @@ export const Header: React.FC<HeaderProps> = ({ onSettingsClick, onHistoryClick,
             </h1>
         </div>
         <div className="flex items-center gap-2">
+             {onHistoryClick && (
+                <button 
+                    onClick={onHistoryClick} 
+                    className="p-2 rounded-full text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors"
+                    aria-label="Voir l'historique"
+                >
+                    <HistoryIcon />
+                </button>
+            )}
+            {onSettingsClick && (
+                <button 
+                    onClick={onSettingsClick} 
+                    className="p-2 rounded-full text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors"
+                    aria-label="Ouvrir les paramètres"
+                >
+                    <SettingsIcon />
+                </button>
+            )}
             {user ? (
                  <div className="relative">
                     <button 
                         onClick={() => setIsMenuOpen(!isMenuOpen)} 
-                        className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+                        className="p-2 rounded-full text-gray-600 hover:bg-gray-200 hover:text-gray-800 transition-colors"
+                        aria-label="Ouvrir le menu utilisateur"
                     >
                        <UserCircleIcon />
                     </button>

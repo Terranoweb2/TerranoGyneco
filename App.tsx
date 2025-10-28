@@ -12,6 +12,8 @@ import { User } from './types';
 const AppRouter: React.FC = () => {
     const [route, setRoute] = useState(window.location.hash);
     const { user, loading } = useAuth();
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
     useEffect(() => {
         const handleHashChange = () => {
@@ -58,7 +60,12 @@ const AppRouter: React.FC = () => {
         switch (route) {
             case '#/app':
                  if (isApproved(user)) {
-                    return <ChatPage />;
+                    return <ChatPage 
+                        isSettingsOpen={isSettingsOpen}
+                        setIsSettingsOpen={setIsSettingsOpen}
+                        isHistoryOpen={isHistoryOpen}
+                        setIsHistoryOpen={setIsHistoryOpen}
+                    />;
                 }
                  return <ProfilePage navigate={navigate} />;
             case '#/profile':
@@ -69,22 +76,42 @@ const AppRouter: React.FC = () => {
                 }
                  // Redirect non-admin users
                 navigate('#/app');
-                return <ChatPage />;
+                return <ChatPage 
+                    isSettingsOpen={isSettingsOpen}
+                    setIsSettingsOpen={setIsSettingsOpen}
+                    isHistoryOpen={isHistoryOpen}
+                    setIsHistoryOpen={setIsHistoryOpen}
+                />;
             case '#/login':
             case '#/signup':
                  navigate('#/app');
-                 return <ChatPage />;
+                 return <ChatPage 
+                    isSettingsOpen={isSettingsOpen}
+                    setIsSettingsOpen={setIsSettingsOpen}
+                    isHistoryOpen={isHistoryOpen}
+                    setIsHistoryOpen={setIsHistoryOpen}
+                />;
             default:
                  navigate('#/app');
-                 return <ChatPage />;
+                 return <ChatPage 
+                    isSettingsOpen={isSettingsOpen}
+                    setIsSettingsOpen={setIsSettingsOpen}
+                    isHistoryOpen={isHistoryOpen}
+                    setIsHistoryOpen={setIsHistoryOpen}
+                />;
         }
     };
     
     const showHeader = route !== '#/' && route !== '' && route !== '#/login' && route !== '#/signup';
+    const isChatPage = route === '#/app';
 
     return (
         <div className="flex flex-col h-screen font-sans bg-gray-50">
-            {showHeader && <Header navigate={navigate} />}
+            {showHeader && <Header 
+                navigate={navigate}
+                onSettingsClick={isChatPage && isApproved(user) ? () => setIsSettingsOpen(true) : undefined}
+                onHistoryClick={isChatPage && isApproved(user) ? () => setIsHistoryOpen(true) : undefined}
+            />}
             {renderContent()}
         </div>
     );
