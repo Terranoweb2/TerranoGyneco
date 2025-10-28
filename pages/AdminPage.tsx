@@ -44,17 +44,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
     }
     
     const pendingUsersCount = users.filter(u => u.status === 'pending').length;
+    const nonAdminUsers = users.filter(u => !u.isAdmin);
 
     return (
-        <div className="flex-1 bg-gray-100 p-4 md:p-8">
-            <div className="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-lg">
-                <h2 className="text-3xl font-bold text-gray-800 mb-6">Tableau de Bord Administrateur</h2>
+        <div className="flex-1 bg-gray-100 p-2 sm:p-4 md:p-8">
+            <div className="max-w-4xl mx-auto bg-white p-4 sm:p-6 rounded-xl shadow-lg">
+                <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">Tableau de Bord Administrateur</h2>
                 <p className="mb-8 text-gray-600">Gérez les inscriptions des médecins et validez leur accès à l'application.</p>
 
-                <div className="md:hidden text-sm text-gray-500 mb-2">
-                   <p>➡️ Faites défiler la table horizontalement pour voir toutes les colonnes.</p>
-                </div>
-                <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                {/* Table for medium screens and up */}
+                <div className="hidden md:block overflow-x-auto border border-gray-200 rounded-lg">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
@@ -68,7 +67,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {users.filter(u => !u.isAdmin).map((doc) => (
+                            {nonAdminUsers.map((doc) => (
                                 <tr key={doc.id}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{doc.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.email}</td>
@@ -92,6 +91,38 @@ const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
                             ))}
                         </tbody>
                     </table>
+                </div>
+                
+                {/* Cards for small screens */}
+                <div className="md:hidden space-y-4">
+                    {nonAdminUsers.length > 0 ? (
+                        nonAdminUsers.map((doc) => (
+                             <div key={doc.id} className="bg-white p-4 rounded-lg shadow border border-gray-200">
+                                <div className="flex justify-between items-start mb-2">
+                                    <p className="text-lg font-bold text-gray-800 break-words">{doc.name}</p>
+                                    <span className={`flex-shrink-0 ml-2 px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full text-center ${doc.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                        {doc.status === 'approved' ? 'Approuvé' : 'En attente'}
+                                    </span>
+                                </div>
+                                <div className="text-sm text-gray-600 space-y-1 break-words">
+                                    <p><span className="font-semibold">Email:</span> {doc.email}</p>
+                                    <p><span className="font-semibold">Licence:</span> {doc.licenseId}</p>
+                                </div>
+                                {doc.status === 'pending' && (
+                                    <div className="mt-4 flex justify-end">
+                                        <button
+                                            onClick={() => handleApprove(doc.id)}
+                                            className="text-white bg-green-500 hover:bg-green-600 px-4 py-2 rounded-md transition-colors text-sm font-medium"
+                                        >
+                                            Approuver
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-center text-gray-500 py-4">Aucun utilisateur à afficher.</p>
+                    )}
                 </div>
 
                 <div className="mt-10 pt-6 border-t border-gray-200">
