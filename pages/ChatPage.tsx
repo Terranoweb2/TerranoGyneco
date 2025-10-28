@@ -160,33 +160,47 @@ const ChatPage: React.FC = () => {
         if (isEndingRef.current) return;
         setIsEnding(true);
         setIsAiTyping(false);
-
+    
         if (scriptProcessorRef.current) scriptProcessorRef.current.disconnect();
         if (sessionPromiseRef.current) {
-            const session = await sessionPromiseRef.current;
-            session.close();
+            try {
+                const session = await sessionPromiseRef.current;
+                session.close();
+            } catch (e) {
+                console.error("Error closing live session:", e);
+            }
             sessionPromiseRef.current = null;
         }
-
+    
         playingSourcesRef.current.forEach(source => source.stop());
         playingSourcesRef.current.clear();
         
         setCurrentInputTranscription('');
-
+    
+        const goodbyeText = "Entendu. La session est terminée. N'hésitez pas si vous avez d'autres questions plus tard. Au revoir.";
+    
         try {
+            if (outputAudioContextRef.current && outputAudioContextRef.current.state === 'suspended') {
+                await outputAudioContextRef.current.resume();
+            }
+    
             setStatus('THINKING');
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
             const response = await ai.models.generateContent({
                 model: "gemini-2.5-flash-preview-tts",
-                contents: [{ parts: [{ text: "Entendu. La session est terminée. N'hésitez pas si vous avez d'autres questions plus tard. Au revoir." }] }],
+                contents: [{ parts: [{ text: goodbyeText }] }],
                 config: {
                     responseModalities: [Modality.AUDIO],
                     speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
                 },
             });
             const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-
+    
             if (base64Audio && outputAudioContextRef.current) {
+                setConversation(prev => [
+                    ...prev,
+                    { id: `ai-goodbye-${Date.now()}`, sender: Sender.AI, text: goodbyeText }
+                ]);
                 setStatus('SPEAKING');
                 const audioBuffer = await decodeAudioData(decode(base64Audio), outputAudioContextRef.current, 24000, 1);
                 const sourceNode = outputAudioContextRef.current.createBufferSource();
@@ -197,10 +211,15 @@ const ChatPage: React.FC = () => {
                     stopConversation();
                 };
             } else {
-                throw new Error("Failed to generate goodbye audio.");
+                throw new Error("Failed to generate goodbye audio (no data).");
             }
         } catch (error) {
-            console.error("Failed to end session politely:", error);
+            console.error("Failed to end session politely with audio:", error);
+            // Fallback to text message and immediate stop
+            setConversation(prev => [
+                ...prev,
+                { id: `ai-goodbye-fallback-${Date.now()}`, sender: Sender.AI, text: goodbyeText }
+            ]);
             stopConversation();
         }
     }, [stopConversation]);
