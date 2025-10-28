@@ -11,6 +11,13 @@ export interface ChatMessage {
   imageUrl?: string;
 }
 
+export interface StoredConversation {
+  id: string;
+  title: string;
+  createdAt: string;
+  messages: ChatMessage[];
+}
+
 export interface User {
   id: string;
   email: string;

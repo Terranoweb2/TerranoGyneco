@@ -1,4 +1,5 @@
 
+// Fix: Import useState from React.
 import React, { useState } from 'react';
 import { ChatMessage, Sender } from '../types';
 
@@ -150,21 +151,31 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ conversation
     }, [conversation, currentInputTranscription, isAiTyping]);
 
     return (
-        <div className="flex-1 w-full max-w-5xl mx-auto p-4 md:p-6 overflow-y-auto">
-            <div className="space-y-6">
-                {conversation.map((msg) => (
-                    <MessageBubble key={msg.id} message={msg} onImageClick={onImageClick} />
-                ))}
-                {currentInputTranscription && (
-                     <div className="flex justify-end">
-                        <div className="max-w-xl rounded-2xl p-4 shadow bg-pink-500 text-white/70 rounded-br-none italic">
-                           <p>{currentInputTranscription}...</p>
+        <div className="flex-1 w-full max-w-5xl mx-auto p-4 md:p-6 overflow-y-auto flex flex-col">
+            {conversation.length === 0 && !isAiTyping && !currentInputTranscription ? (
+                <div className="flex-grow flex flex-col items-center justify-center text-center text-white p-4">
+                     <div className="bg-black/30 backdrop-blur-sm p-8 rounded-2xl">
+                        <img src="https://res.cloudinary.com/dxy0fiahv/image/upload/v1760883038/logo_Dr-T_sqgqy5.png" alt="Logo" className="w-24 h-24 mb-4 mx-auto" />
+                        <h2 className="text-2xl font-bold">Bonjour Docteur.</h2>
+                        <p className="text-lg text-white/80 mt-2 max-w-md">Je suis TerranoGyneco. Appuyez sur le microphone pour commencer.</p>
+                     </div>
+                </div>
+            ) : (
+                <div className="space-y-6">
+                    {conversation.map((msg) => (
+                        <MessageBubble key={msg.id} message={msg} onImageClick={onImageClick} />
+                    ))}
+                    {currentInputTranscription && (
+                         <div className="flex justify-end">
+                            <div className="max-w-xl rounded-2xl p-4 shadow bg-pink-500 text-white/70 rounded-br-none italic">
+                               <p>{currentInputTranscription}...</p>
+                            </div>
                         </div>
-                    </div>
-                )}
-                {isAiTyping && <TypingIndicator />}
-                <div ref={conversationEndRef} />
-            </div>
+                    )}
+                    {isAiTyping && <TypingIndicator />}
+                    <div ref={conversationEndRef} />
+                </div>
+            )}
         </div>
     );
 };

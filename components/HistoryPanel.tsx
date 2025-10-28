@@ -1,10 +1,15 @@
-import React, { useEffect } from 'react';
-import { ChatMessage, Sender } from '../types';
+import React, { useEffect, useState } from 'react';
+import { StoredConversation } from '../types';
 
 interface HistoryPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  conversation: ChatMessage[];
+  conversations: StoredConversation[];
+  activeConversationId: string | null;
+  onLoadConversation: (id: string) => void;
+  onNewConversation: () => void;
+  onRenameConversation: (id: string, newTitle: string) => void;
+  onDeleteConversation: (id: string) => void;
 }
 
 const CloseIcon = () => (
@@ -12,21 +17,24 @@ const CloseIcon = () => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
     </svg>
 );
-
-const UserIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-        <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" />
+const PlusIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+    </svg>
+);
+const PencilIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+    </svg>
+);
+const TrashIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
     </svg>
 );
 
-const AIIcon = () => (
-     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-        <path fillRule="evenodd" d="M8.25 6.75a3.75 3.75 0 117.5 0 3.75 3.75 0 01-7.5 0zM15.75 9.75a3 3 0 116 0 3 3 0 01-6 0zM2.25 9.75a3 3 0 116 0 3 3 0 01-6 0zM6.31 15.117A6.745 6.745 0 0112 12a6.745 6.745 0 015.69 3.117.75.75 0 01-.981.814A5.25 5.25 0 0012 13.5a5.25 5.25 0 00-4.709 2.431.75.75 0 01-.981-.814z" clipRule="evenodd" />
-    </svg>
-);
 
-
-export const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, conversation }) => {
+export const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, conversations, activeConversationId, onLoadConversation, onNewConversation, onRenameConversation, onDeleteConversation }) => {
     
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -42,7 +50,32 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, con
         };
     }, [isOpen, onClose]);
     
-    const filteredConversation = conversation.filter(msg => msg.sender !== Sender.System);
+    const [renamingId, setRenamingId] = useState<string | null>(null);
+    const [titleInput, setTitleInput] = useState('');
+
+    const handleRenameStart = (conversation: StoredConversation) => {
+        setRenamingId(conversation.id);
+        setTitleInput(conversation.title);
+    };
+
+    const handleRenameCancel = () => {
+        setRenamingId(null);
+        setTitleInput('');
+    };
+
+    const handleRenameSave = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (renamingId && titleInput.trim()) {
+            onRenameConversation(renamingId, titleInput.trim());
+            handleRenameCancel();
+        }
+    };
+    
+    const handleDelete = (id: string) => {
+        if (window.confirm("Êtes-vous sûr de vouloir supprimer cette conversation ? Cette action est irréversible.")) {
+            onDeleteConversation(id);
+        }
+    };
 
     return (
         <>
@@ -67,7 +100,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, con
                     {/* Header */}
                     <header className="flex items-center justify-between p-4 border-b">
                         <h2 id="history-panel-title" className="text-xl font-bold text-gray-800">
-                            Historique de la Conversation
+                            Historique des Conversations
                         </h2>
                         <button
                             onClick={onClose}
@@ -77,35 +110,62 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, con
                             <CloseIcon />
                         </button>
                     </header>
+                    
+                    {/* New Conversation Button */}
+                    <div className="p-4 border-b">
+                        <button
+                            onClick={onNewConversation}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-pink-500 text-white font-semibold rounded-lg shadow-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75 transition-colors"
+                        >
+                            <PlusIcon />
+                            Nouvelle Conversation
+                        </button>
+                    </div>
 
                     {/* Content */}
-                    <div className="flex-1 p-4 overflow-y-auto">
-                        {filteredConversation.length === 0 ? (
-                            <div className="flex items-center justify-center h-full">
-                                <p className="text-gray-500">Aucun historique pour le moment.</p>
+                    <div className="flex-1 p-2 overflow-y-auto">
+                        {conversations.length === 0 ? (
+                            <div className="flex items-center justify-center h-full text-center p-4">
+                                <p className="text-gray-500">Aucune conversation sauvegardée.</p>
                             </div>
                         ) : (
-                            <ul className="space-y-4">
-                                {filteredConversation.map((msg) => (
-                                    <li key={msg.id} className="flex items-start gap-3">
-                                        <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.sender === Sender.User ? 'bg-pink-100 text-pink-600' : 'bg-gray-200 text-gray-700'}`}>
-                                            {msg.sender === Sender.User ? <UserIcon /> : <AIIcon />}
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="font-bold text-sm">
-                                                {msg.sender === Sender.User ? "Médecin" : "TerranoGyneco"}
-                                            </p>
-                                            <p className="text-gray-700 whitespace-pre-wrap">{msg.text}</p>
-                                            {msg.imageUrl && msg.sender === Sender.AI && (
-                                                <div className="mt-2">
-                                                    <img
-                                                        src={msg.imageUrl}
-                                                        alt="Illustration Médicale de l'historique"
-                                                        className="rounded-lg max-w-xs w-full border"
-                                                    />
+                            <ul className="space-y-1">
+                                {conversations.map((convo) => (
+                                    <li key={convo.id}>
+                                        {renamingId === convo.id ? (
+                                            <form onSubmit={handleRenameSave} className="p-2 bg-gray-100 rounded-lg">
+                                                <input
+                                                    type="text"
+                                                    value={titleInput}
+                                                    onChange={(e) => setTitleInput(e.target.value)}
+                                                    className="w-full p-2 border border-pink-500 rounded-md"
+                                                    autoFocus
+                                                    onBlur={handleRenameCancel}
+                                                />
+                                                <div className="flex justify-end gap-2 mt-2">
+                                                    <button type="button" onClick={handleRenameCancel} className="px-3 py-1 text-sm rounded-md hover:bg-gray-200">Annuler</button>
+                                                    <button type="submit" className="px-3 py-1 text-sm rounded-md bg-pink-500 text-white hover:bg-pink-600">Enregistrer</button>
                                                 </div>
-                                            )}
-                                        </div>
+                                            </form>
+                                        ) : (
+                                            <div
+                                                onClick={() => onLoadConversation(convo.id)}
+                                                className={`group flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
+                                                    activeConversationId === convo.id ? 'bg-pink-100' : 'hover:bg-gray-100'
+                                                }`}
+                                            >
+                                                <div className="truncate pr-2">
+                                                    <p className="font-semibold text-gray-800 truncate">{convo.title}</p>
+                                                    <p className="text-sm text-gray-500">
+                                                        {new Date(convo.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                                    </p>
+                                                </div>
+                                                <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                                                    <button onClick={(e) => { e.stopPropagation(); handleRenameStart(convo); }} className="p-2 text-gray-500 rounded-full hover:bg-gray-200" aria-label="Renommer"><PencilIcon /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleDelete(convo.id); }} className="p-2 text-red-500 rounded-full hover:bg-red-100" aria-label="Supprimer"><TrashIcon /></button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </li>
                                 ))}
                             </ul>

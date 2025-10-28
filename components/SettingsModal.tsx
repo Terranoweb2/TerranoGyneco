@@ -8,6 +8,9 @@ interface SettingsModalProps {
   isConversationActive: boolean;
   isTranscriptionEnabled: boolean;
   onTranscriptionToggle: (isEnabled: boolean) => void;
+  aiVoice: string;
+  onAiVoiceChange: (voice: string) => void;
+  onClearCache: () => void;
 }
 
 const CloseIcon = () => (
@@ -17,12 +20,23 @@ const CloseIcon = () => (
 );
 
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, sensitivity, onSensitivityChange, isConversationActive, isTranscriptionEnabled, onTranscriptionToggle }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, sensitivity, onSensitivityChange, isConversationActive, isTranscriptionEnabled, onTranscriptionToggle, aiVoice, onAiVoiceChange, onClearCache }) => {
   if (!isOpen) return null;
 
   const handleSensitivityChangeInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
     onSensitivityChange(parseFloat(e.target.value));
   };
+
+  const handleVoiceChangeInternal = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    onAiVoiceChange(e.target.value);
+  };
+
+  const handleClearCacheClick = () => {
+    if (window.confirm("Êtes-vous sûr de vouloir vider le cache ? Cela vous déconnectera, réinitialisera vos paramètres et effacera TOUT l'historique de vos conversations de cet appareil. Cette action est irréversible.")) {
+        onClearCache();
+    }
+  };
+
 
   return (
     <div 
@@ -40,7 +54,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
         >
             <CloseIcon />
         </button>
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Paramètres Audio</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">Paramètres</h2>
 
         <div className="space-y-6">
             <div>
@@ -86,16 +100,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                     </button>
                 </div>
             </div>
+
+            <hr className="border-gray-200" />
+
+            <div>
+                <label htmlFor="ai-voice" className="block text-md font-medium text-gray-700 mb-2">
+                    Voix de l'IA
+                </label>
+                <select
+                    id="ai-voice"
+                    value={aiVoice}
+                    onChange={handleVoiceChangeInternal}
+                    disabled={isConversationActive}
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                >
+                    <option value="Kore">Voix Féminine (Calme)</option>
+                    <option value="Puck">Voix Masculine (Grave)</option>
+                    <option value="Zephyr">Voix Masculine (Claire)</option>
+                    <option value="Charon">Voix Féminine (Professionnelle)</option>
+                </select>
+            </div>
             
              {isConversationActive && (
                 <p className="text-sm text-center text-gray-600 bg-gray-100 p-3 rounded-lg">
                     Les ajustements sont désactivés pendant une conversation.
                 </p>
             )}
-            
-            <div className="text-sm text-gray-600 bg-gray-100 p-3 rounded-lg">
-                <p>
-                    <strong>Note :</strong> Le taux d'échantillonnage audio est fixé à 16kHz pour une compatibilité optimale avec l'API et ne peut pas être modifié.
+
+            <hr className="border-gray-200" />
+
+            <div>
+                <h3 className="text-md font-medium text-gray-700 mb-2">Maintenance</h3>
+                <button
+                    onClick={handleClearCacheClick}
+                    disabled={isConversationActive}
+                    className="w-full px-4 py-2 border border-red-300 text-red-700 font-semibold rounded-lg shadow-sm hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
+                >
+                    Vider le cache de l'application
+                </button>
+                <p className="text-xs text-gray-500 mt-2">
+                    Utilisez cette option si vous rencontrez des problèmes. Cela effacera l'historique et les paramètres stockés sur votre appareil et vous déconnectera.
                 </p>
             </div>
         </div>
