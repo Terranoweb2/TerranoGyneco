@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { GoogleGenAI, LiveSession, LiveServerMessage, Modality, Type, FunctionDeclaration, Blob, GenerateContentResponse } from '@google/genai';
 import { Header } from '../components/Header';
@@ -118,7 +119,6 @@ const ChatPage: React.FC = () => {
         }
     }, []);
 
-
     const stopConversation = useCallback(async () => {
         setStatus('IDLE');
         setCurrentInputTranscription('');
@@ -136,29 +136,23 @@ const ChatPage: React.FC = () => {
             sessionPromiseRef.current = null;
         }
 
+        if (scriptProcessorRef.current) {
+            scriptProcessorRef.current.disconnect();
+            scriptProcessorRef.current.onaudioprocess = null;
+            scriptProcessorRef.current = null;
+        }
         if (gainNodeRef.current) {
             gainNodeRef.current.disconnect();
             gainNodeRef.current = null;
-        }
-        if (scriptProcessorRef.current) {
-            scriptProcessorRef.current.disconnect();
-            scriptProcessorRef.current = null;
         }
         if (mediaStreamSourceRef.current) {
             mediaStreamSourceRef.current.disconnect();
             mediaStreamSourceRef.current = null;
         }
+        
         if (mediaStreamRef.current) {
             mediaStreamRef.current.getTracks().forEach(track => track.stop());
             mediaStreamRef.current = null;
-        }
-        if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-            await audioContextRef.current.close();
-            audioContextRef.current = null;
-        }
-        if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') {
-            await outputAudioContextRef.current.close();
-            outputAudioContextRef.current = null;
         }
     }, []);
 
@@ -167,7 +161,6 @@ const ChatPage: React.FC = () => {
         setIsEnding(true);
         setIsAiTyping(false);
 
-        // Immediately stop mic input and close the session
         if (scriptProcessorRef.current) scriptProcessorRef.current.disconnect();
         if (sessionPromiseRef.current) {
             const session = await sessionPromiseRef.current;
@@ -175,7 +168,6 @@ const ChatPage: React.FC = () => {
             sessionPromiseRef.current = null;
         }
 
-        // Interrupt any currently playing audio
         playingSourcesRef.current.forEach(source => source.stop());
         playingSourcesRef.current.clear();
         
@@ -220,16 +212,34 @@ const ChatPage: React.FC = () => {
         }
     };
 
+    const initAudio = async () => {
+        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        }
+        if (audioContextRef.current.state === 'suspended') {
+            await audioContextRef.current.resume();
+        }
+
+        if (!outputAudioContextRef.current || outputAudioContextRef.current.state === 'closed') {
+            outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        }
+        if (outputAudioContextRef.current.state === 'suspended') {
+            await outputAudioContextRef.current.resume();
+        }
+
+        if (!mediaStreamRef.current || mediaStreamRef.current.getTracks().every(t => t.readyState === 'ended')) {
+            mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+        }
+    };
+
+
     const startConversation = useCallback(async () => {
         setStatus('LISTENING');
         setConversation([]);
 
         try {
-            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
-            outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+            await initAudio();
             
-            mediaStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
             let nextStartTime = 0;
@@ -258,6 +268,7 @@ const ChatPage: React.FC = () => {
                         gainNodeRef.current.gain.value = micSensitivity;
 
                         scriptProcessor.onaudioprocess = (audioProcessingEvent) => {
+                            if (!scriptProcessorRef.current) return;
                             const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
                             const l = inputData.length;
                             const int16 = new Int16Array(l);
@@ -278,10 +289,17 @@ const ChatPage: React.FC = () => {
                     },
                     onmessage: async (message: LiveServerMessage) => {
                          if (isEndingRef.current) return;
-                         
-                        const isAiResponding = message.serverContent?.outputTranscription || message.serverContent?.modelTurn || message.toolCall;
-                        if (isAiResponding) {
+
+                        const isStartingAiTurn = (message.serverContent?.outputTranscription || message.serverContent?.modelTurn || message.toolCall) && !aiTurnId;
+
+                        if (isStartingAiTurn) {
+                            if (tempInput.trim()) {
+                                setConversation(prev => [...prev, { id: `user-${Date.now()}`, sender: Sender.User, text: tempInput.trim() }]);
+                            }
+                            tempInput = '';
+                            setCurrentInputTranscription('');
                             setIsAiTyping(true);
+                            aiTurnId = `ai-${Date.now()}`;
                         }
 
                         if (message.serverContent) {
@@ -311,9 +329,6 @@ const ChatPage: React.FC = () => {
                                 }
                             }
                             if (message.serverContent.outputTranscription) {
-                                if (tempOutput === '') { // First part of AI response
-                                     aiTurnId = `ai-${Date.now()}`;
-                                }
                                 tempOutput += message.serverContent.outputTranscription.text;
                             }
 
@@ -336,15 +351,13 @@ const ChatPage: React.FC = () => {
 
                              if (message.serverContent.turnComplete) {
                                 setIsAiTyping(false);
-                                if (tempInput.trim()) {
-                                    setConversation(prev => [...prev, { id: `user-${Date.now()}`, sender: Sender.User, text: tempInput.trim() }]);
-                                }
                                 if (tempOutput.trim()) {
                                     setConversation(prev => [...prev, { id: aiTurnId, sender: Sender.AI, text: tempOutput.trim() }]);
                                 }
                                 tempInput = '';
                                 tempOutput = '';
                                 setCurrentInputTranscription('');
+                                aiTurnId = '';
                             }
                         }
                         if (message.toolCall?.functionCalls) {
@@ -381,9 +394,14 @@ const ChatPage: React.FC = () => {
     }, [stopConversation, generateImage, generateMedicalIllustrationFunction, micSensitivity, endSessionPolitely]);
     
     useEffect(() => {
-        // Cleanup on unmount
         return () => {
             stopConversation();
+            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+                audioContextRef.current.close();
+            }
+            if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') {
+                outputAudioContextRef.current.close();
+            }
         }
     }, [stopConversation]);
 
@@ -391,7 +409,6 @@ const ChatPage: React.FC = () => {
         if (status === 'IDLE' || status === 'ERROR') {
             startConversation();
         } else {
-            // Use polite ending unless there's an active ending process
             if (!isEnding) {
                  endSessionPolitely();
             }

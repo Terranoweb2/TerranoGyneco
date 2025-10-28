@@ -28,7 +28,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ navigate }) => {
     if (success) {
         return (
              <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
-                <div className="max-w-md w-full text-center bg-white p-8 rounded-xl shadow-lg">
+                <div className="max-w-md w-full text-center bg-white p-6 sm:p-8 rounded-xl shadow-lg">
                     <h2 className="text-2xl font-bold text-gray-800 mb-4">Inscription Réussie !</h2>
                     <p className="text-gray-600 mb-6">
                         Votre compte a été créé. Il est maintenant en attente de validation par un administrateur. Vous recevrez une notification une fois votre compte approuvé.
@@ -46,7 +46,7 @@ const SignUpPage: React.FC<SignUpPageProps> = ({ navigate }) => {
 
     return (
         <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
-            <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg">
+            <div className="max-w-md w-full bg-white p-6 sm:p-8 rounded-xl shadow-lg">
                 <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Créer un Compte</h2>
                 {error && <p className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-center">{error}</p>}
                 <form onSubmit={handleSubmit} className="space-y-6">

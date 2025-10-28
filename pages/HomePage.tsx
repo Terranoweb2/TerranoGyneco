@@ -25,16 +25,16 @@ const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                 <p className="mt-4 text-lg md:text-xl text-gray-600">
                     L'assistant IA de pointe, réservé aux gynécologues. Dialoguez avec une intelligence artificielle spécialisée pour des réponses précises et illustrées à vos questions cliniques.
                 </p>
-                <div className="mt-8 flex justify-center gap-4">
+                <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4 w-full max-w-xs sm:max-w-none mx-auto">
                     <button 
                         onClick={() => navigate('#/login')}
-                        className="px-8 py-3 bg-pink-500 text-white font-semibold rounded-lg shadow-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75 transition-transform transform hover:scale-105"
+                        className="w-full sm:w-auto px-8 py-3 bg-pink-500 text-white font-semibold rounded-lg shadow-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75 transition-transform transform hover:scale-105"
                     >
                         Se Connecter
                     </button>
                     <button 
                          onClick={() => navigate('#/signup')}
-                         className="px-8 py-3 bg-white text-pink-500 font-semibold rounded-lg shadow-md border border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75 transition-transform transform hover:scale-105"
+                         className="w-full sm:w-auto px-8 py-3 bg-white text-pink-500 font-semibold rounded-lg shadow-md border border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75 transition-transform transform hover:scale-105"
                     >
                         Créer un compte
                     </button>

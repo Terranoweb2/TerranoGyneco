@@ -51,7 +51,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ navigate }) => {
                 <h2 className="text-3xl font-bold text-gray-800 mb-6">Tableau de Bord Administrateur</h2>
                 <p className="mb-8 text-gray-600">Gérez les inscriptions des médecins et validez leur accès à l'application.</p>
 
-                <div className="overflow-x-auto">
+                <div className="md:hidden text-sm text-gray-500 mb-2">
+                   <p>➡️ Faites défiler la table horizontalement pour voir toutes les colonnes.</p>
+                </div>
+                <div className="overflow-x-auto border border-gray-200 rounded-lg">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>

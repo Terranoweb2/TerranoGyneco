@@ -106,7 +106,7 @@ const MessageBubble: React.FC<{ message: ChatMessage, onImageClick: (url: string
       </div>
 
       {!isUser && message.text && (
-         <div className="flex-shrink-0 self-center flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+         <div className="flex-shrink-0 self-center flex flex-col gap-1 opacity-50 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
            <button
              onClick={handleCopy}
              className="text-gray-500 hover:text-pink-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"

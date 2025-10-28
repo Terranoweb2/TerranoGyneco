@@ -55,8 +55,8 @@ export const Header: React.FC<HeaderProps> = ({ onSettingsClick, onHistoryClick,
             onClick={() => navigate(user ? '#/app' : '#/')}
         >
             <UterusIcon />
-            <h1 className="text-2xl font-bold text-gray-800">
-                Terrano<span className="text-pink-600">Gyneco</span>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 truncate">
+                Terrano<span className="text-pink-600 hidden sm:inline">Gyneco</span>
             </h1>
         </div>
         <div className="flex items-center gap-2">

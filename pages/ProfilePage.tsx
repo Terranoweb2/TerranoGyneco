@@ -24,7 +24,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
 
     return (
         <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
-            <div className="max-w-lg w-full bg-white p-8 rounded-xl shadow-lg">
+            <div className="max-w-lg w-full bg-white p-6 sm:p-8 rounded-xl shadow-lg">
                 <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">Mon Profil</h2>
                 
                 {user.status === 'pending' && (
