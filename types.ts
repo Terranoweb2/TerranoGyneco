@@ -1,4 +1,3 @@
-
 export enum Sender {
   User = 'user',
   AI = 'ai',
@@ -10,4 +9,14 @@ export interface ChatMessage {
   sender: Sender;
   text: string;
   imageUrl?: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  passwordHash: string; 
+  licenseId: string;
+  status: 'pending' | 'approved';
+  isAdmin: boolean;
 }

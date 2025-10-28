@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 const UterusIcon = () => (
   <svg
@@ -16,50 +17,93 @@ const UterusIcon = () => (
   </svg>
 );
 
-const SettingsIcon = () => (
+const UserCircleIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.438.995s.145.755.438.995l1.003.827c.48.398.668 1.03.26 1.431l-1.296 2.247a1.125 1.125 0 01-1.37.49l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.063-.374-.313-.686-.645-.87a6.52 6.52 0 01-.22-.127c-.324-.196-.72-.257-1.075-.124l-1.217.456a1.125 1.125 0 01-1.37-.49l-1.296-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.437-.995s-.145-.755-.437-.995l-1.004-.827a1.125 1.125 0 01-.26-1.431l1.296-2.247a1.125 1.125 0 011.37-.49l1.217.456c.355.133.75.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
 );
 
-const HistoryIcon = () => (
+const LogoutIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+    </svg>
+);
+
+const AdminIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.286zm0 13.036h.008v.008h-.008v-.008z" />
     </svg>
 );
 
 
 interface HeaderProps {
-    onSettingsClick: () => void;
-    onHistoryClick: () => void;
+    onSettingsClick?: () => void;
+    onHistoryClick?: () => void;
+    navigate: (path: string) => void;
+    isChatPage?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onSettingsClick, onHistoryClick }) => {
-  return (
+export const Header: React.FC<HeaderProps> = ({ onSettingsClick, onHistoryClick, navigate, isChatPage }) => {
+    const { user, logout } = useAuth();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+    return (
     <header className="w-full bg-white/80 backdrop-blur-sm p-4 shadow-md sticky top-0 z-10">
-      <div className="max-w-5xl mx-auto flex items-center justify-between">
-         <div className="flex items-center gap-3">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+         <div 
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => navigate(user ? '#/app' : '#/')}
+        >
             <UterusIcon />
             <h1 className="text-2xl font-bold text-gray-800">
                 Terrano<span className="text-pink-600">Gyneco</span>
             </h1>
         </div>
         <div className="flex items-center gap-2">
-            <button 
-                onClick={onHistoryClick}
-                className="text-gray-600 hover:text-pink-600 p-2 rounded-full transition-colors hover:bg-gray-200"
-                aria-label="Ouvrir l'historique"
-            >
-                <HistoryIcon />
-            </button>
-            <button 
-                onClick={onSettingsClick}
-                className="text-gray-600 hover:text-pink-600 p-2 rounded-full transition-colors hover:bg-gray-200"
-                aria-label="Ouvrir les paramètres"
-            >
-                <SettingsIcon />
-            </button>
+            {user ? (
+                 <div className="relative">
+                    <button 
+                        onClick={() => setIsMenuOpen(!isMenuOpen)} 
+                        className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+                    >
+                       <UserCircleIcon />
+                    </button>
+                    {isMenuOpen && (
+                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20">
+                             <button
+                                 onClick={() => { navigate('#/profile'); setIsMenuOpen(false); }}
+                                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                             >
+                                 <UserCircleIcon /> Mon Profil
+                             </button>
+                              {user.isAdmin && (
+                                 <button
+                                     onClick={() => { navigate('#/admin'); setIsMenuOpen(false); }}
+                                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                 >
+                                    <AdminIcon /> Admin
+                                 </button>
+                             )}
+                             <button
+                                 onClick={() => { logout(); navigate('#/'); setIsMenuOpen(false); }}
+                                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                             >
+                                 <LogoutIcon /> Déconnexion
+                             </button>
+                         </div>
+                     )}
+                 </div>
+
+            ) : (
+                <>
+                    <button onClick={() => navigate('#/login')} className="font-semibold text-gray-600 hover:text-pink-600 transition-colors px-4 py-2 rounded-md">
+                        Connexion
+                    </button>
+                    <button onClick={() => navigate('#/signup')} className="font-semibold text-white bg-pink-500 hover:bg-pink-600 transition-colors px-4 py-2 rounded-md shadow-sm">
+                        Inscription
+                    </button>
+                </>
+            )}
         </div>
       </div>
     </header>
