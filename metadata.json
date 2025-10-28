@@ -1,0 +1,7 @@
+{
+  "name": "TerranoGyneco",
+  "description": "An advanced AI conversational assistant for gynecologists. Users can ask complex questions in gynecology and receive audible, precise answers, supplemented with medical illustrations upon request.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
