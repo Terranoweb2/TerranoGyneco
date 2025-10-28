@@ -6,6 +6,7 @@ import { encode, decode, decodeAudioData } from '../utils/audio';
 import { SettingsModal } from '../components/SettingsModal';
 import { HistoryPanel } from '../components/HistoryPanel';
 import { ImageZoomModal } from '../components/ImageZoomModal';
+import { useAuth } from '../contexts/AuthContext';
 
 const MicIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -37,7 +38,6 @@ interface ChatPageProps {
 
 const CONVERSATIONS_KEY = 'terrano-gyneco-conversations';
 const SETTINGS_KEY = 'terrano-gyneco-settings';
-const SESSION_KEY = 'terrano-gyneco-session';
 
 
 const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, isHistoryOpen, setIsHistoryOpen }) => {
@@ -54,6 +54,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [autoSaveStatus, setAutoSaveStatus] = useState('');
 
+    const { logout } = useAuth();
 
     const sessionPromiseRef = useRef<Promise<LiveSession> | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -168,6 +169,16 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
         }
     }, [allConversations, loadConversation, startNewConversation]);
 
+    const handleDeleteMessage = useCallback((messageId: string) => {
+        setConversation(prev => {
+            const updated = prev.filter(msg => msg.id !== messageId);
+            if (activeConversationIdRef.current) {
+                saveConversation(activeConversationIdRef.current, updated);
+            }
+            return updated;
+        });
+    }, [saveConversation]);
+
     // --- Auto-Save Logic ---
     useEffect(() => {
         const autoSaveInterval = setInterval(() => {
@@ -190,13 +201,12 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
     const handleClearCache = () => {
         console.log("Clearing application cache...");
         
-        // Clear user-specific data from localStorage
         localStorage.removeItem(CONVERSATIONS_KEY);
         localStorage.removeItem(SETTINGS_KEY);
-        localStorage.removeItem(SESSION_KEY); // This effectively logs the user out
         
-        // Force a hard reload to apply changes and reset state
-        window.location.reload();
+        logout().then(() => {
+            window.location.reload();
+        });
     };
 
     // --- Core Conversation Logic ---
@@ -485,6 +495,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
                     currentInputTranscription={currentInputTranscription} 
                     isAiTyping={isAiTyping}
                     onImageClick={setZoomedImageUrl}
+                    onDeleteMessage={handleDeleteMessage}
                 />
                 <footer className="w-full p-4 bg-white/50 backdrop-blur-sm border-t border-gray-200">
                     <div className="max-w-5xl mx-auto flex flex-col items-center gap-3">

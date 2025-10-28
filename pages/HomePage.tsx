@@ -41,7 +41,7 @@ const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
                     </button>
                 </div>
                  <p className="mt-8 text-sm text-gray-500">
-                    L'accès est réservé aux professionnels de la santé. Chaque inscription est soumise à une validation.
+                    L'accès est réservé aux professionnels de la santé.
                 </p>
             </div>
         </div>

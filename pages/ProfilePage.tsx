@@ -27,13 +27,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ navigate }) => {
             <div className="max-w-lg w-full bg-white p-6 sm:p-8 rounded-xl shadow-lg">
                 <h2 className="text-3xl font-bold text-center text-gray-800 mb-8">Mon Profil</h2>
                 
-                {user.status === 'pending' && (
-                     <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded-md" role="alert">
-                        <p className="font-bold">Compte non validé</p>
-                        <p>Votre compte est en cours de vérification par nos administrateurs. Vous aurez accès à l'assistant conversationnel une fois votre compte approuvé.</p>
-                    </div>
-                )}
-                
                 <div className="space-y-4 text-gray-700">
                     <div className="flex justify-between items-center">
                         <span className="font-medium">Nom :</span>

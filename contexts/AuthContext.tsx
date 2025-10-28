@@ -1,113 +1,170 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { User } from '../types';
-
-// Simple password check (DO NOT USE IN PRODUCTION)
-const ADMIN_PASSWORD = "TohTibla2026";
+import { supabase } from '../lib/supabase';
+import { userService } from '../services/user';
 
 interface AuthContextType {
     user: User | null;
+    allUsers: User[];
     loading: boolean;
-    login: (email: string, pass: string) => Promise<boolean>;
-    signup: (name: string, email: string, pass: string, licenseId: string) => Promise<boolean>;
-    logout: () => void;
-    approveUser: (userId: string) => void;
-    getAllUsers: () => User[];
+    login: (email: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+    loginWithGoogle: () => Promise<void>;
+    signup: (name: string, email: string, pass: string, licenseId: string) => Promise<{ success: boolean; error?: string }>;
+    logout: () => Promise<void>;
+    grantAdmin: (userId: string) => Promise<void>;
+    revokeAdmin: (userId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const USERS_KEY = 'terrano-gyneco-users';
-const SESSION_KEY = 'terrano-gyneco-session';
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
+    const [allUsers, setAllUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        // Initialize admin user if not exists
-        const allUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '[]') as User[];
-        const adminExists = allUsers.some(u => u.isAdmin);
-        if (!adminExists) {
-            const adminUser: User = {
-                id: `user-${Date.now()}`,
-                name: 'Dr. T Delphine',
-                email: 'lycoshoster@gmail.com',
-                passwordHash: ADMIN_PASSWORD, // Plain text for prototype
-                licenseId: 'ADMIN-001',
-                status: 'approved',
-                isAdmin: true,
-            };
-            allUsers.push(adminUser);
-            localStorage.setItem(USERS_KEY, JSON.stringify(allUsers));
-        }
+    const handleUserSession = async (session: Session | null) => {
+        if (session?.user) {
+            let userProfile = await userService.getUserProfile(session.user.id);
+            const isSuperAdminByCredentials = 
+                session.user.id === '74b00408-2ab8-4f88-9220-1e1614e50afe' || 
+                session.user.email === 'lycoshoster@gmail.com';
 
-        // Check for active session
-        const session = localStorage.getItem(SESSION_KEY);
-        if (session) {
-            const loggedInUser = allUsers.find(u => u.id === session);
-            if(loggedInUser) setUser(loggedInUser);
+            // If profile doesn't exist, create it.
+            if (!userProfile && session.user.email) {
+                const provider = session.user.app_metadata.provider || 'email';
+
+                const newUserProfileData: User = {
+                    id: session.user.id,
+                    email: session.user.email,
+                    name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
+                    licenseId: session.user.user_metadata?.license_id || (provider === 'google' ? 'N/A (Google Sign-In)' : 'N/A'),
+                    status: 'approved',
+                    isAdmin: isSuperAdminByCredentials,
+                    authMethod: provider === 'google' ? 'google' : 'email',
+                };
+                
+                const createdProfile = await userService.createUserProfile(newUserProfileData);
+
+                if (createdProfile) {
+                    userProfile = createdProfile;
+                } else {
+                    // Creation failed, possibly due to a race condition.
+                    // Re-fetch the profile, as it was likely created by the other concurrent process.
+                    console.log("Profile creation failed, re-fetching profile.");
+                    userProfile = await userService.getUserProfile(session.user.id);
+                }
+            }
+            
+            // If profile exists, ensure Super Admin rights are correctly set.
+            // This syncs the DB with the hardcoded super admin list on every login.
+            if (userProfile && isSuperAdminByCredentials && (!userProfile.isAdmin || userProfile.status !== 'approved')) {
+                const updates: Partial<User> = {};
+                if (!userProfile.isAdmin) updates.isAdmin = true;
+                if (userProfile.status !== 'approved') updates.status = 'approved';
+                
+                if (Object.keys(updates).length > 0) {
+                    const updatedProfile = await userService.updateUser(userProfile.id, updates);
+                    if (updatedProfile) userProfile = updatedProfile;
+                }
+            }
+
+            setUser(userProfile);
+            if (userProfile?.isAdmin) {
+                const users = await userService.getAllUsers();
+                setAllUsers(users);
+            }
+        } else {
+            setUser(null);
+            setAllUsers([]);
         }
         setLoading(false);
+    };
 
+    useEffect(() => {
+        setLoading(true);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (_event, session) => {
+                handleUserSession(session);
+            }
+        );
+
+        return () => {
+            subscription?.unsubscribe();
+        };
     }, []);
     
-    const getAllUsers = (): User[] => {
-        return JSON.parse(localStorage.getItem(USERS_KEY) || '[]') as User[];
+    const fetchAllUsersForAdmin = async () => {
+        if (user?.isAdmin) {
+            const users = await userService.getAllUsers();
+            setAllUsers(users);
+        }
     };
 
-    const login = async (email: string, pass: string): Promise<boolean> => {
-        const allUsers = getAllUsers();
-        const foundUser = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.passwordHash === pass);
 
-        if (foundUser) {
-            setUser(foundUser);
-            localStorage.setItem(SESSION_KEY, foundUser.id);
-            return true;
-        }
-        return false;
+    const login = async (email: string, pass: string) => {
+        const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+        if (error) return { success: false, error: error.message };
+        return { success: true };
     };
 
-    const signup = async (name: string, email: string, pass: string, licenseId: string): Promise<boolean> => {
-        const allUsers = getAllUsers();
-        const emailExists = allUsers.some(u => u.email.toLowerCase() === email.toLowerCase());
-
-        if (emailExists) {
-            alert("Cet email est déjà utilisé.");
-            return false;
+    const loginWithGoogle = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+        });
+        if (error) {
+            console.error('Error signing in with Google:', error);
         }
+    };
 
-        const newUser: User = {
-            id: `user-${Date.now()}`,
-            name,
+    const signup = async (name: string, email: string, pass: string, licenseId: string) => {
+        const { data, error } = await supabase.auth.signUp({
             email,
-            passwordHash: pass,
-            licenseId,
-            status: 'pending',
-            isAdmin: false
-        };
+            password: pass,
+            options: {
+                data: {
+                    full_name: name,
+                    license_id: licenseId,
+                }
+            }
+        });
 
-        allUsers.push(newUser);
-        localStorage.setItem(USERS_KEY, JSON.stringify(allUsers));
-        return true;
+        if (error) return { success: false, error: error.message };
+        if (!data.user) return { success: false, error: "L'utilisateur n'a pas été créé." };
+        
+        // Profile creation is now handled by the onAuthStateChange listener
+        // via handleUserSession once the user confirms their email. This ensures
+        // the user has an active session, which is required for RLS policies
+        // to allow the insert on the public.users table.
+        return { success: true };
     };
 
-    const logout = () => {
+    const logout = async () => {
+        await supabase.auth.signOut();
         setUser(null);
-        localStorage.removeItem(SESSION_KEY);
+        setAllUsers([]);
     };
     
-    const approveUser = (userId: string) => {
-        const allUsers = getAllUsers();
-        const userIndex = allUsers.findIndex(u => u.id === userId);
-        if (userIndex !== -1) {
-            allUsers[userIndex].status = 'approved';
-            localStorage.setItem(USERS_KEY, JSON.stringify(allUsers));
+    const grantAdmin = async (userId: string) => {
+        if (user?.id === userId) {
+            console.warn("Admin cannot change their own role.");
+            return;
         }
+        await userService.updateUser(userId, { isAdmin: true });
+        await fetchAllUsersForAdmin();
     };
 
+    const revokeAdmin = async (userId: string) => {
+        if (user?.id === userId) {
+            console.warn("Admin cannot change their own role.");
+            return;
+        }
+        await userService.updateUser(userId, { isAdmin: false });
+        await fetchAllUsersForAdmin();
+    };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, signup, logout, approveUser, getAllUsers }}>
+        <AuthContext.Provider value={{ user, allUsers, loading, login, loginWithGoogle, signup, logout, grantAdmin, revokeAdmin }}>
             {children}
         </AuthContext.Provider>
     );

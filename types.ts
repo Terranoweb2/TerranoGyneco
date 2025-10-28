@@ -22,8 +22,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  passwordHash: string; 
   licenseId: string;
   status: 'pending' | 'approved';
   isAdmin: boolean;
+  authMethod: 'email' | 'google';
 }

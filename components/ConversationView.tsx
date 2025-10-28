@@ -1,4 +1,5 @@
 
+
 // Fix: Import useState from React.
 import React, { useState } from 'react';
 import { ChatMessage, Sender } from '../types';
@@ -8,6 +9,7 @@ interface ConversationViewProps {
   currentInputTranscription: string;
   isAiTyping: boolean;
   onImageClick: (url: string) => void;
+  onDeleteMessage: (id: string) => void;
 }
 
 const ImagePlaceholder = () => (
@@ -30,8 +32,14 @@ const ShareIcon = () => (
     </svg>
 );
 
+const TrashIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+    </svg>
+);
 
-const MessageBubble: React.FC<{ message: ChatMessage, onImageClick: (url: string) => void }> = ({ message, onImageClick }) => {
+
+const MessageBubble: React.FC<{ message: ChatMessage; onImageClick: (url: string) => void; onDelete: (id: string) => void; }> = ({ message, onImageClick, onDelete }) => {
   const [isCopied, setIsCopied] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const isUser = message.sender === Sender.User;
@@ -63,6 +71,11 @@ const MessageBubble: React.FC<{ message: ChatMessage, onImageClick: (url: string
     }
   };
 
+  const handleDelete = () => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce message ? Cette action est irréversible.")) {
+      onDelete(message.id);
+    }
+  };
 
   if (isSystem) {
       return (
@@ -75,57 +88,67 @@ const MessageBubble: React.FC<{ message: ChatMessage, onImageClick: (url: string
   }
 
   return (
-    <div className={`group flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`relative max-w-xl rounded-2xl p-4 shadow ${
-          isUser
-            ? 'bg-pink-500 text-white rounded-br-none'
-            : 'bg-white text-gray-800 rounded-bl-none'
-        }`}
-      >
-        {isCopied && (
-          <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center z-10">
-            <span className="text-white font-bold text-lg">Copié !</span>
-          </div>
-        )}
-        <p className="whitespace-pre-wrap">{message.text}</p>
-        {message.imageUrl && (
-          <div className="mt-3">
-            {!isImageLoaded && <ImagePlaceholder />}
-            <img
-              src={message.imageUrl}
-              alt="Illustration Médicale"
-              className={`rounded-lg max-w-sm w-full cursor-zoom-in ${isImageLoaded ? 'block' : 'hidden'}`}
-              onLoad={() => setIsImageLoaded(true)}
-              onClick={(e) => {
-                  e.stopPropagation();
-                  onImageClick(message.imageUrl!);
-              }}
-            />
-          </div>
-        )}
+    <div className={`group w-full flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+        <div className={`flex items-start gap-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+            <div
+                className={`relative max-w-xl rounded-2xl p-4 shadow ${
+                isUser
+                    ? 'bg-pink-500 text-white rounded-br-none'
+                    : 'bg-white text-gray-800 rounded-bl-none'
+                }`}
+            >
+                {isCopied && (
+                <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center z-10">
+                    <span className="text-white font-bold text-lg">Copié !</span>
+                </div>
+                )}
+                <p className="whitespace-pre-wrap">{message.text}</p>
+                {message.imageUrl && (
+                <div className="mt-3">
+                    {!isImageLoaded && <ImagePlaceholder />}
+                    <img
+                    src={message.imageUrl}
+                    alt="Illustration Médicale"
+                    className={`rounded-lg max-w-sm w-full cursor-zoom-in ${isImageLoaded ? 'block' : 'hidden'}`}
+                    onLoad={() => setIsImageLoaded(true)}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onImageClick(message.imageUrl!);
+                    }}
+                    />
+                </div>
+                )}
+            </div>
+            <div className="flex-shrink-0 self-center flex flex-col gap-1 opacity-50 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
+                {!isUser && message.text && (
+                    <>
+                        <button
+                            onClick={handleCopy}
+                            className="text-gray-500 hover:text-pink-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                            aria-label="Copier le texte"
+                        >
+                            <CopyIcon />
+                        </button>
+                        {typeof navigator.share !== 'undefined' && (
+                            <button
+                                onClick={handleShare}
+                                className="text-gray-500 hover:text-pink-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                                aria-label="Partager le texte"
+                            >
+                                <ShareIcon />
+                            </button>
+                        )}
+                    </>
+                )}
+                <button
+                    onClick={handleDelete}
+                    className="text-gray-500 hover:text-red-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                    aria-label="Supprimer le message"
+                >
+                    <TrashIcon />
+                </button>
+            </div>
       </div>
-
-      {!isUser && message.text && (
-         <div className="flex-shrink-0 self-center flex flex-col gap-1 opacity-50 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
-           <button
-             onClick={handleCopy}
-             className="text-gray-500 hover:text-pink-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
-             aria-label="Copier le texte"
-           >
-             <CopyIcon />
-           </button>
-           {typeof navigator.share !== 'undefined' && (
-              <button
-                onClick={handleShare}
-                className="text-gray-500 hover:text-pink-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Partager le texte"
-              >
-                <ShareIcon />
-              </button>
-           )}
-        </div>
-      )}
     </div>
   );
 };
@@ -143,7 +166,7 @@ const TypingIndicator = () => (
 );
 
 
-export const ConversationView: React.FC<ConversationViewProps> = ({ conversation, currentInputTranscription, isAiTyping, onImageClick }) => {
+export const ConversationView: React.FC<ConversationViewProps> = ({ conversation, currentInputTranscription, isAiTyping, onImageClick, onDeleteMessage }) => {
     const conversationEndRef = React.useRef<HTMLDivElement>(null);
 
     React.useEffect(() => {
@@ -163,7 +186,7 @@ export const ConversationView: React.FC<ConversationViewProps> = ({ conversation
             ) : (
                 <div className="space-y-6">
                     {conversation.map((msg) => (
-                        <MessageBubble key={msg.id} message={msg} onImageClick={onImageClick} />
+                        <MessageBubble key={msg.id} message={msg} onImageClick={onImageClick} onDelete={onDeleteMessage} />
                     ))}
                     {currentInputTranscription && (
                          <div className="flex justify-end">
