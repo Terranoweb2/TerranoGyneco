@@ -4,11 +4,18 @@ export enum Sender {
   System = 'system',
 }
 
+export interface Source {
+  uri: string;
+  title: string;
+  snippet?: string;
+}
+
 export interface ChatMessage {
   id: string;
   sender: Sender;
   text: string;
   imageUrl?: string;
+  sources?: Source[];
 }
 
 export interface StoredConversation {
@@ -16,14 +23,4 @@ export interface StoredConversation {
   title: string;
   createdAt: string;
   messages: ChatMessage[];
-}
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  licenseId: string;
-  status: 'pending' | 'approved';
-  isAdmin: boolean;
-  authMethod: 'email' | 'google';
 }

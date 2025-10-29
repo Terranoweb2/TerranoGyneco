@@ -89,7 +89,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, con
 
             {/* Panel */}
             <div
-                className={`fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${
+                className={`fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-gray-800 shadow-2xl z-40 transform transition-transform duration-300 ease-in-out ${
                     isOpen ? 'translate-x-0' : 'translate-x-full'
                 }`}
                 role="dialog"
@@ -98,13 +98,13 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, con
             >
                 <div className="flex flex-col h-full">
                     {/* Header */}
-                    <header className="flex items-center justify-between p-4 border-b">
-                        <h2 id="history-panel-title" className="text-xl font-bold text-gray-800">
+                    <header className="flex items-center justify-between p-4 border-b dark:border-gray-700">
+                        <h2 id="history-panel-title" className="text-xl font-bold text-gray-800 dark:text-gray-200">
                             Historique des Conversations
                         </h2>
                         <button
                             onClick={onClose}
-                            className="p-2 text-gray-500 rounded-full hover:bg-gray-100 hover:text-gray-800 transition-colors"
+                            className="p-2 text-gray-500 dark:text-gray-400 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
                             aria-label="Fermer l'historique"
                         >
                             <CloseIcon />
@@ -112,7 +112,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, con
                     </header>
                     
                     {/* New Conversation Button */}
-                    <div className="p-4 border-b">
+                    <div className="p-4 border-b dark:border-gray-700">
                         <button
                             onClick={onNewConversation}
                             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-pink-500 text-white font-semibold rounded-lg shadow-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75 transition-colors"
@@ -126,24 +126,24 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, con
                     <div className="flex-1 p-2 overflow-y-auto">
                         {conversations.length === 0 ? (
                             <div className="flex items-center justify-center h-full text-center p-4">
-                                <p className="text-gray-500">Aucune conversation sauvegardée.</p>
+                                <p className="text-gray-500 dark:text-gray-400">Aucune conversation sauvegardée.</p>
                             </div>
                         ) : (
                             <ul className="space-y-1">
                                 {conversations.map((convo) => (
                                     <li key={convo.id}>
                                         {renamingId === convo.id ? (
-                                            <form onSubmit={handleRenameSave} className="p-2 bg-gray-100 rounded-lg">
+                                            <form onSubmit={handleRenameSave} className="p-2 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                                                 <input
                                                     type="text"
                                                     value={titleInput}
                                                     onChange={(e) => setTitleInput(e.target.value)}
-                                                    className="w-full p-2 border border-pink-500 rounded-md"
+                                                    className="w-full p-2 border border-pink-500 rounded-md bg-white dark:bg-gray-900 dark:text-white"
                                                     autoFocus
                                                     onBlur={handleRenameCancel}
                                                 />
                                                 <div className="flex justify-end gap-2 mt-2">
-                                                    <button type="button" onClick={handleRenameCancel} className="px-3 py-1 text-sm rounded-md hover:bg-gray-200">Annuler</button>
+                                                    <button type="button" onClick={handleRenameCancel} className="px-3 py-1 text-sm rounded-md hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-600">Annuler</button>
                                                     <button type="submit" className="px-3 py-1 text-sm rounded-md bg-pink-500 text-white hover:bg-pink-600">Enregistrer</button>
                                                 </div>
                                             </form>
@@ -151,18 +151,18 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ isOpen, onClose, con
                                             <div
                                                 onClick={() => onLoadConversation(convo.id)}
                                                 className={`group flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
-                                                    activeConversationId === convo.id ? 'bg-pink-100' : 'hover:bg-gray-100'
+                                                    activeConversationId === convo.id ? 'bg-pink-100 dark:bg-pink-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                                                 }`}
                                             >
                                                 <div className="truncate pr-2">
-                                                    <p className="font-semibold text-gray-800 truncate">{convo.title}</p>
-                                                    <p className="text-sm text-gray-500">
+                                                    <p className="font-semibold text-gray-800 dark:text-gray-200 truncate">{convo.title}</p>
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400">
                                                         {new Date(convo.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                                                     </p>
                                                 </div>
                                                 <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                                                    <button onClick={(e) => { e.stopPropagation(); handleRenameStart(convo); }} className="p-2 text-gray-500 rounded-full hover:bg-gray-200" aria-label="Renommer"><PencilIcon /></button>
-                                                    <button onClick={(e) => { e.stopPropagation(); handleDelete(convo.id); }} className="p-2 text-red-500 rounded-full hover:bg-red-100" aria-label="Supprimer"><TrashIcon /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleRenameStart(convo); }} className="p-2 text-gray-500 dark:text-gray-400 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600" aria-label="Renommer"><PencilIcon /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); handleDelete(convo.id); }} className="p-2 text-red-500 rounded-full hover:bg-red-100 dark:hover:bg-red-500/20" aria-label="Supprimer"><TrashIcon /></button>
                                                 </div>
                                             </div>
                                         )}

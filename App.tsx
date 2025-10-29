@@ -1,128 +1,147 @@
-import React, { useEffect, useState } from 'react';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
-import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import SignUpPage from './pages/SignUpPage';
 import ChatPage from './pages/ChatPage';
-import ProfilePage from './pages/ProfilePage';
-import AdminPage from './pages/AdminPage';
-import { User } from './types';
+import HomePage from './pages/HomePage';
+import { SourcesPage } from './pages/SourcesPage';
+import { StoredConversation, ChatMessage } from './types';
 
-const AppRouter: React.FC = () => {
-    const [route, setRoute] = useState(window.location.hash);
-    const { user, loading } = useAuth();
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+export type Theme = 'light' | 'dark';
+export type View = 'welcome' | 'chat' | 'sources';
 
-    useEffect(() => {
-        const handleHashChange = () => {
-            setRoute(window.location.hash);
-        };
-        window.addEventListener('hashchange', handleHashChange);
-        return () => {
-            window.removeEventListener('hashchange', handleHashChange);
-        };
-    }, []);
-
-    const navigate = (path: string) => {
-        window.location.hash = path;
-    };
-
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center h-screen bg-gray-100">
-                <div className="text-xl font-semibold text-gray-700">Chargement...</div>
-            </div>
-        );
-    }
-    
-    const isApproved = (user: User | null): user is User => {
-        return user?.status === 'approved';
-    }
-
-    const renderContent = () => {
-        // Public routes
-        if (!user) {
-            switch (route) {
-                case '#/login':
-                    return <LoginPage navigate={navigate} />;
-                case '#/signup':
-                    return <SignUpPage navigate={navigate} />;
-                case '#/':
-                case '':
-                default:
-                    return <HomePage navigate={navigate} />;
-            }
-        }
-        
-        // Protected Routes
-        switch (route) {
-            case '#/app':
-                 if (isApproved(user)) {
-                    return <ChatPage 
-                        isSettingsOpen={isSettingsOpen}
-                        setIsSettingsOpen={setIsSettingsOpen}
-                        isHistoryOpen={isHistoryOpen}
-                        setIsHistoryOpen={setIsHistoryOpen}
-                    />;
-                }
-                 return <ProfilePage navigate={navigate} />;
-            case '#/profile':
-                return <ProfilePage navigate={navigate} />;
-            case '#/admin':
-                if (user.isAdmin) {
-                    return <AdminPage navigate={navigate} />;
-                }
-                 // Redirect non-admin users
-                navigate('#/app');
-                return <ChatPage 
-                    isSettingsOpen={isSettingsOpen}
-                    setIsSettingsOpen={setIsSettingsOpen}
-                    isHistoryOpen={isHistoryOpen}
-                    setIsHistoryOpen={setIsHistoryOpen}
-                />;
-            case '#/login':
-            case '#/signup':
-                 navigate('#/app');
-                 return <ChatPage 
-                    isSettingsOpen={isSettingsOpen}
-                    setIsSettingsOpen={setIsSettingsOpen}
-                    isHistoryOpen={isHistoryOpen}
-                    setIsHistoryOpen={setIsHistoryOpen}
-                />;
-            default:
-                 navigate('#/app');
-                 return <ChatPage 
-                    isSettingsOpen={isSettingsOpen}
-                    setIsSettingsOpen={setIsSettingsOpen}
-                    isHistoryOpen={isHistoryOpen}
-                    setIsHistoryOpen={setIsHistoryOpen}
-                />;
-        }
-    };
-    
-    const showHeader = route !== '#/' && route !== '' && route !== '#/login' && route !== '#/signup';
-    const isChatPage = route === '#/app';
-
-    return (
-        <div className="flex flex-col h-screen font-sans bg-gray-50">
-            {showHeader && <Header 
-                navigate={navigate}
-                onSettingsClick={isChatPage && isApproved(user) ? () => setIsSettingsOpen(true) : undefined}
-                onHistoryClick={isChatPage && isApproved(user) ? () => setIsHistoryOpen(true) : undefined}
-            />}
-            {renderContent()}
-        </div>
-    );
-};
-
+const CONVERSATIONS_KEY = 'terrano-gyneco-conversations';
 
 const App: React.FC = () => {
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const [theme, setTheme] = useState<Theme>(
+        () => (localStorage.getItem('terrano-theme') as Theme) || 'light'
+    );
+    const [view, setView] = useState<View>('welcome');
+
+    // --- Conversation State Lifted from ChatPage ---
+    const [allConversations, setAllConversations] = useState<StoredConversation[]>([]);
+    const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+
+    useEffect(() => {
+        const root = window.document.documentElement;
+        if (theme === 'dark') {
+            root.classList.add('dark');
+        } else {
+            root.classList.remove('dark');
+        }
+        localStorage.setItem('terrano-theme', theme);
+    }, [theme]);
+    
+    useEffect(() => {
+        const savedConversations = JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || '[]') as StoredConversation[];
+        const sorted = savedConversations.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setAllConversations(sorted);
+        
+        if (sorted.length > 0) {
+            setActiveConversationId(sorted[0].id);
+        } else {
+            startNewConversation([]); // Start with a fresh one if none exist
+        }
+    }, []);
+    
+    const saveAllConversations = (conversations: StoredConversation[]) => {
+        const sorted = conversations.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(sorted));
+        setAllConversations(sorted);
+    };
+
+    const handleSaveConversation = useCallback((id: string, messages: ChatMessage[], title?: string) => {
+        setAllConversations(prev => {
+            const convoIndex = prev.findIndex(c => c.id === id);
+            if (convoIndex === -1) return prev;
+
+            const updatedConversations = [...prev];
+            const currentConvo = { ...updatedConversations[convoIndex] };
+            currentConvo.messages = messages;
+            if (title) currentConvo.title = title;
+            
+            // Move updated conversation to the top
+            updatedConversations.splice(convoIndex, 1);
+            updatedConversations.unshift(currentConvo);
+
+            localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(updatedConversations));
+            return updatedConversations;
+        });
+    }, []);
+
+    const startNewConversation = useCallback((currentConversations: StoredConversation[]) => {
+        const newId = `convo-${Date.now()}`;
+        const newConversation: StoredConversation = { id: newId, title: "Nouvelle Conversation", createdAt: new Date().toISOString(), messages: [] };
+        
+        const updatedConversations = [newConversation, ...currentConversations];
+        saveAllConversations(updatedConversations);
+        setActiveConversationId(newId);
+        
+        if (isHistoryOpen) setIsHistoryOpen(false);
+        if (view === 'sources') setView('chat');
+    }, [isHistoryOpen, view]);
+
+    const loadConversation = useCallback((id: string) => {
+        setActiveConversationId(id);
+        if (isHistoryOpen) setIsHistoryOpen(false);
+        if (view === 'sources') setView('chat');
+    }, [isHistoryOpen, view]);
+
+    const renameConversation = useCallback((id: string, newTitle: string) => {
+        const updated = allConversations.map(c => c.id === id ? { ...c, title: newTitle } : c);
+        saveAllConversations(updated);
+    }, [allConversations]);
+
+    const deleteConversation = useCallback((id: string) => {
+        const updated = allConversations.filter(c => c.id !== id);
+        saveAllConversations(updated);
+
+        if (activeConversationId === id) {
+            if (updated.length > 0) {
+                setActiveConversationId(updated[0].id);
+            } else {
+                startNewConversation([]);
+            }
+        }
+    }, [allConversations, activeConversationId, startNewConversation]);
+
+    const activeConversation = allConversations.find(c => c.id === activeConversationId);
+
     return (
-        <AuthProvider>
-            <AppRouter />
-        </AuthProvider>
+        <div className="flex flex-col h-screen font-sans bg-gray-50 dark:bg-gray-900">
+            {(view === 'chat' || view === 'sources') && (
+                <Header
+                    onSettingsClick={() => setIsSettingsOpen(true)}
+                    onHistoryClick={() => setIsHistoryOpen(true)}
+                    onSourcesClick={() => setView('sources')}
+                />
+            )}
+            
+            {view === 'welcome' && <HomePage onStart={() => setView('chat')} />}
+
+            {view === 'chat' && activeConversation && (
+                <ChatPage
+                    key={activeConversation.id} // Re-mounts component on conversation change
+                    conversationData={activeConversation}
+                    allConversations={allConversations}
+                    onSaveConversation={handleSaveConversation}
+                    onStartNewConversation={() => startNewConversation(allConversations)}
+                    onLoadConversation={loadConversation}
+                    onRenameConversation={renameConversation}
+                    onDeleteConversation={deleteConversation}
+                    isSettingsOpen={isSettingsOpen}
+                    setIsSettingsOpen={setIsSettingsOpen}
+                    isHistoryOpen={isHistoryOpen}
+                    setIsHistoryOpen={setIsHistoryOpen}
+                    theme={theme}
+                    setTheme={setTheme}
+                />
+            )}
+
+            {view === 'sources' && (
+                <SourcesPage conversations={allConversations} onClose={() => setView('chat')} />
+            )}
+        </div>
     );
 };
 

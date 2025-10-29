@@ -1,4 +1,5 @@
 import React from 'react';
+import { Theme } from '../App';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -11,6 +12,8 @@ interface SettingsModalProps {
   aiVoice: string;
   onAiVoiceChange: (voice: string) => void;
   onClearCache: () => void;
+  theme: Theme;
+  onThemeChange: (theme: Theme) => void;
 }
 
 const CloseIcon = () => (
@@ -20,7 +23,7 @@ const CloseIcon = () => (
 );
 
 
-export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, sensitivity, onSensitivityChange, isConversationActive, isTranscriptionEnabled, onTranscriptionToggle, aiVoice, onAiVoiceChange, onClearCache }) => {
+export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, sensitivity, onSensitivityChange, isConversationActive, isTranscriptionEnabled, onTranscriptionToggle, aiVoice, onAiVoiceChange, onClearCache, theme, onThemeChange }) => {
   if (!isOpen) return null;
 
   const handleSensitivityChangeInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,21 +47,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
         onClick={onClose}
     >
       <div 
-        className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 w-11/12 max-w-md relative"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-6 md:p-8 w-11/12 max-w-md relative"
         onClick={(e) => e.stopPropagation()} // Prevent closing modal when clicking inside
       >
         <button 
             onClick={onClose} 
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors"
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
             aria-label="Fermer les paramètres"
         >
             <CloseIcon />
         </button>
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">Paramètres</h2>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6">Paramètres</h2>
 
         <div className="space-y-6">
             <div>
-                <label htmlFor="sensitivity" className="block text-md font-medium text-gray-700 mb-2">
+                <label htmlFor="sensitivity" className="block text-md font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Sensibilité du microphone
                 </label>
                 <div className="flex items-center gap-4">
@@ -71,27 +74,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                         value={sensitivity}
                         onChange={handleSensitivityChangeInternal}
                         disabled={isConversationActive}
-                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-pink-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
-                    <span className="font-semibold text-gray-700 w-12 text-center">{sensitivity.toFixed(1)}x</span>
+                    <span className="font-semibold text-gray-700 dark:text-gray-300 w-12 text-center">{sensitivity.toFixed(1)}x</span>
                 </div>
             </div>
             
-            <hr className="border-gray-200" />
+            <hr className="border-gray-200 dark:border-gray-600" />
             
              <div>
                 <div className="flex items-center justify-between">
                     <div>
-                        <label id="transcription-label" className="block text-md font-medium text-gray-700">
+                        <label id="transcription-label" className="block text-md font-medium text-gray-700 dark:text-gray-300">
                             Transcription en direct
                         </label>
-                        <p className="text-sm text-gray-500">Afficher le texte de la conversation.</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Afficher le texte de la conversation.</p>
                     </div>
                      <button
                         type="button"
                         onClick={() => onTranscriptionToggle(!isTranscriptionEnabled)}
                         disabled={isConversationActive}
-                        className={`relative inline-flex flex-shrink-0 items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 disabled:opacity-50 disabled:cursor-not-allowed ${isTranscriptionEnabled ? 'bg-pink-600' : 'bg-gray-300'}`}
+                        className={`relative inline-flex flex-shrink-0 items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 disabled:opacity-50 disabled:cursor-not-allowed ${isTranscriptionEnabled ? 'bg-pink-600' : 'bg-gray-300 dark:bg-gray-600'}`}
                         aria-pressed={isTranscriptionEnabled}
                         aria-labelledby="transcription-label"
                     >
@@ -101,10 +104,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                 </div>
             </div>
 
-            <hr className="border-gray-200" />
+            <hr className="border-gray-200 dark:border-gray-600" />
+            
+             <div>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <label id="dark-mode-label" className="block text-md font-medium text-gray-700 dark:text-gray-300">
+                            Mode Nuit
+                        </label>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Adapter l'interface pour le soir.</p>
+                    </div>
+                     <button
+                        type="button"
+                        onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+                        className={`relative inline-flex flex-shrink-0 items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 ${theme === 'dark' ? 'bg-pink-600' : 'bg-gray-300 dark:bg-gray-600'}`}
+                        aria-pressed={theme === 'dark'}
+                        aria-labelledby="dark-mode-label"
+                    >
+                        <span className="sr-only">Activer le mode nuit</span>
+                        <span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                </div>
+            </div>
+
+            <hr className="border-gray-200 dark:border-gray-600" />
 
             <div>
-                <label htmlFor="ai-voice" className="block text-md font-medium text-gray-700 mb-2">
+                <label htmlFor="ai-voice" className="block text-md font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Voix de l'IA
                 </label>
                 <select
@@ -112,7 +138,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                     value={aiVoice}
                     onChange={handleVoiceChangeInternal}
                     disabled={isConversationActive}
-                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-slate-700 dark:border-gray-600 dark:text-white"
                 >
                     <option value="Kore">Voix Féminine (Calme)</option>
                     <option value="Puck">Voix Masculine (Grave)</option>
@@ -122,23 +148,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
             </div>
             
              {isConversationActive && (
-                <p className="text-sm text-center text-gray-600 bg-gray-100 p-3 rounded-lg">
+                <p className="text-sm text-center text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-slate-700 p-3 rounded-lg">
                     Les ajustements sont désactivés pendant une conversation.
                 </p>
             )}
 
-            <hr className="border-gray-200" />
+            <hr className="border-gray-200 dark:border-gray-600" />
 
             <div>
-                <h3 className="text-md font-medium text-gray-700 mb-2">Maintenance</h3>
+                <h3 className="text-md font-medium text-gray-700 dark:text-gray-300 mb-2">Maintenance</h3>
                 <button
                     onClick={handleClearCacheClick}
                     disabled={isConversationActive}
-                    className="w-full px-4 py-2 border border-red-300 text-red-700 font-semibold rounded-lg shadow-sm hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    className="w-full px-4 py-2 border border-red-300 text-red-700 font-semibold rounded-lg shadow-sm hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-75 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 dark:border-red-500/50 dark:text-red-400 dark:hover:bg-red-500/10 dark:disabled:bg-slate-700"
                 >
                     Vider le cache de l'application
                 </button>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                     Utilisez cette option si vous rencontrez des problèmes. Cela effacera l'historique et les paramètres stockés sur votre appareil et vous déconnectera.
                 </p>
             </div>

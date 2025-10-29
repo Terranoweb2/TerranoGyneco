@@ -1,12 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { GoogleGenAI, LiveSession, LiveServerMessage, Modality, Type, FunctionDeclaration, Blob } from '@google/genai';
+import { GoogleGenAI, LiveSession, LiveServerMessage, Modality, Type, FunctionDeclaration, Blob, GenerateContentResponse } from '@google/genai';
 import { ConversationView } from '../components/ConversationView';
-import { ChatMessage, Sender, StoredConversation } from '../types';
+import { ChatMessage, Sender, StoredConversation, Source } from '../types';
 import { encode, decode, decodeAudioData } from '../utils/audio';
 import { SettingsModal } from '../components/SettingsModal';
 import { HistoryPanel } from '../components/HistoryPanel';
 import { ImageZoomModal } from '../components/ImageZoomModal';
-import { useAuth } from '../contexts/AuthContext';
+import { Theme } from '../App';
 
 const MicIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -30,19 +30,41 @@ const STOP_PHRASES = [
 type Status = 'IDLE' | 'LISTENING' | 'THINKING' | 'SPEAKING' | 'ERROR';
 
 interface ChatPageProps {
+    conversationData: StoredConversation;
+    allConversations: StoredConversation[];
+    onSaveConversation: (id: string, messages: ChatMessage[], title?: string) => void;
+    onStartNewConversation: () => void;
+    onLoadConversation: (id: string) => void;
+    onRenameConversation: (id: string, newTitle: string) => void;
+    onDeleteConversation: (id: string) => void;
     isSettingsOpen: boolean;
     setIsSettingsOpen: (isOpen: boolean) => void;
     isHistoryOpen: boolean;
     setIsHistoryOpen: (isOpen: boolean) => void;
+    theme: Theme;
+    setTheme: (theme: Theme) => void;
 }
 
-const CONVERSATIONS_KEY = 'terrano-gyneco-conversations';
 const SETTINGS_KEY = 'terrano-gyneco-settings';
 
 
-const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, isHistoryOpen, setIsHistoryOpen }) => {
+const ChatPage: React.FC<ChatPageProps> = ({
+    conversationData,
+    allConversations,
+    onSaveConversation,
+    onStartNewConversation,
+    onLoadConversation,
+    onRenameConversation,
+    onDeleteConversation,
+    isSettingsOpen,
+    setIsSettingsOpen,
+    isHistoryOpen,
+    setIsHistoryOpen,
+    theme,
+    setTheme
+}) => {
     const [status, setStatus] = useState<Status>('IDLE');
-    const [conversation, setConversation] = useState<ChatMessage[]>([]);
+    const [conversation, setConversation] = useState<ChatMessage[]>(conversationData.messages);
     const [currentInputTranscription, setCurrentInputTranscription] = useState('');
     const [isAiTyping, setIsAiTyping] = useState(false);
     const [micSensitivity, setMicSensitivity] = useState(1.0);
@@ -50,11 +72,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
     const [aiVoice, setAiVoice] = useState('Kore');
     const [isEnding, setIsEnding] = useState(false);
     const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null);
-    const [allConversations, setAllConversations] = useState<StoredConversation[]>([]);
-    const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const [autoSaveStatus, setAutoSaveStatus] = useState('');
-
-    const { logout } = useAuth();
 
     const sessionPromiseRef = useRef<Promise<LiveSession> | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -71,13 +89,10 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
     const conversationRef = useRef(conversation);
     useEffect(() => { conversationRef.current = conversation; }, [conversation]);
 
-    const activeConversationIdRef = useRef(activeConversationId);
-    useEffect(() => { activeConversationIdRef.current = activeConversationId; }, [activeConversationId]);
-
     const statusRef = useRef(status);
     useEffect(() => { statusRef.current = status; }, [status]);
 
-    // --- History & Settings Management ---
+    // --- Settings Management ---
     useEffect(() => {
         const savedSettings = localStorage.getItem(SETTINGS_KEY);
         if (savedSettings) {
@@ -86,108 +101,29 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
             if (typeof transcription === 'boolean') setIsTranscriptionEnabled(transcription);
             if (voice) setAiVoice(voice);
         }
-
-        const savedConversations = JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || '[]') as StoredConversation[];
-        setAllConversations(savedConversations.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-        
-        if (savedConversations.length > 0) {
-            loadConversation(savedConversations[0].id, savedConversations);
-        } else {
-            startNewConversation([]);
-        }
     }, []);
 
     useEffect(() => {
         const settings = { sensitivity: micSensitivity, transcription: isTranscriptionEnabled, voice: aiVoice };
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
     }, [micSensitivity, isTranscriptionEnabled, aiVoice]);
-
-    const saveConversation = useCallback((id: string, messages: ChatMessage[], title?: string) => {
-        const conversations = JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || '[]') as StoredConversation[];
-        const convoIndex = conversations.findIndex(c => c.id === id);
-
-        if (convoIndex !== -1) {
-            if (messages.length > 0) {
-                conversations[convoIndex].messages = messages;
-                if(title) conversations[convoIndex].title = title;
-                // Move updated conversation to the top
-                const updatedConvo = conversations.splice(convoIndex, 1)[0];
-                conversations.unshift(updatedConvo);
-            } else {
-                // If conversation is empty, remove it
-                conversations.splice(convoIndex, 1);
-            }
-        }
-        localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
-        setAllConversations(conversations);
-    }, []);
-
-    const startNewConversation = useCallback((currentConversations: StoredConversation[]) => {
-        if (statusRef.current !== 'IDLE' && statusRef.current !== 'ERROR') return;
-        
-        const newId = `convo-${Date.now()}`;
-        const newConversation: StoredConversation = { id: newId, title: "Nouvelle Conversation", createdAt: new Date().toISOString(), messages: [] };
-        
-        const updatedConversations = [newConversation, ...currentConversations];
-        localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(updatedConversations));
-
-        setAllConversations(updatedConversations);
-        setActiveConversationId(newId);
-        setConversation([]);
-        setStatus('IDLE');
-        if (isHistoryOpen) setIsHistoryOpen(false);
-    }, [isHistoryOpen]);
-
-    const loadConversation = useCallback((id: string, allConversationsList?: StoredConversation[]) => {
-        if (statusRef.current !== 'IDLE' && statusRef.current !== 'ERROR') return;
-        const conversationsToSearch = allConversationsList || allConversations;
-        const conversationToLoad = conversationsToSearch.find(c => c.id === id);
-        if (conversationToLoad) {
-            setActiveConversationId(conversationToLoad.id);
-            setConversation(conversationToLoad.messages);
-        }
-        if (isHistoryOpen) setIsHistoryOpen(false);
-    }, [allConversations, isHistoryOpen]);
-
-    const renameConversation = useCallback((id: string, newTitle: string) => {
-        const updatedConversations = allConversations.map(c => c.id === id ? { ...c, title: newTitle } : c);
-        setAllConversations(updatedConversations);
-        localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(updatedConversations));
-    }, [allConversations]);
-
-    const deleteConversation = useCallback((id: string) => {
-        const updatedConversations = allConversations.filter(c => c.id !== id);
-        setAllConversations(updatedConversations);
-        localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(updatedConversations));
-
-        if (activeConversationIdRef.current === id) {
-            if (updatedConversations.length > 0) {
-                loadConversation(updatedConversations[0].id, updatedConversations);
-            } else {
-                startNewConversation([]);
-            }
-        }
-    }, [allConversations, loadConversation, startNewConversation]);
-
+    
     const handleDeleteMessage = useCallback((messageId: string) => {
         setConversation(prev => {
             const updated = prev.filter(msg => msg.id !== messageId);
-            if (activeConversationIdRef.current) {
-                saveConversation(activeConversationIdRef.current, updated);
-            }
+            onSaveConversation(conversationData.id, updated);
             return updated;
         });
-    }, [saveConversation]);
+    }, [onSaveConversation, conversationData.id]);
 
     // --- Auto-Save Logic ---
     useEffect(() => {
         const autoSaveInterval = setInterval(() => {
             const isActive = statusRef.current !== 'IDLE' && statusRef.current !== 'ERROR';
             const hasMessages = conversationRef.current.length > 0;
-            const currentId = activeConversationIdRef.current;
 
-            if (isActive && hasMessages && currentId) {
-                saveConversation(currentId, conversationRef.current);
+            if (isActive && hasMessages) {
+                onSaveConversation(conversationData.id, conversationRef.current);
                 setAutoSaveStatus('Sauvegarde automatique...');
                 setTimeout(() => setAutoSaveStatus(''), 3000); // Clear message after 3 seconds
             }
@@ -196,17 +132,12 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
         return () => {
             clearInterval(autoSaveInterval);
         };
-    }, [saveConversation]);
+    }, [onSaveConversation, conversationData.id]);
     
     const handleClearCache = () => {
         console.log("Clearing application cache...");
-        
-        localStorage.removeItem(CONVERSATIONS_KEY);
-        localStorage.removeItem(SETTINGS_KEY);
-        
-        logout().then(() => {
-            window.location.reload();
-        });
+        localStorage.clear();
+        window.location.reload();
     };
 
     // --- Core Conversation Logic ---
@@ -216,6 +147,79 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
         description: "Génère une illustration médicalement précise basée sur une description textuelle. À utiliser lorsque l'utilisateur demande une image, un diagramme ou une illustration.",
         parameters: { type: Type.OBJECT, properties: { prompt: { type: Type.STRING, description: 'Une description détaillée de l\'illustration médicale à générer.' } }, required: ['prompt'] },
     };
+
+    const searchProfessionalSourcesFunction: FunctionDeclaration = {
+        name: 'search_professional_sources',
+        description: "Recherche sur le web des sources médicales professionnelles et fiables (études, articles de recherche, directives cliniques) sur un sujet donné. À utiliser lorsque la question nécessite des informations factuelles à jour ou des références.",
+        parameters: { type: Type.OBJECT, properties: { query: { type: Type.STRING, description: 'Le sujet de recherche précis.' } }, required: ['query'] },
+    };
+    
+    const executeSearch = async (query: string, turnId: string): Promise<string> => {
+        setStatus('THINKING');
+        setConversation(prev => [...prev, { id: `search-status-${Date.now()}`, sender: Sender.System, text: `Recherche de sources pour : "${query}"...` }]);
+        
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+            
+            const prompt = `Analysez les résultats de recherche pour la requête "${query}" et fournissez une réponse au format JSON. Le JSON doit avoir deux clés: "summary" (une synthèse en français des informations) et "sources" (un tableau d'objets avec "title", "uri", et "snippet" pour chaque source). Ne renvoyez que l'objet JSON brut.`;
+
+            const response: GenerateContentResponse = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: prompt,
+                config: { tools: [{googleSearch: {}}] },
+            });
+
+            setConversation(prev => prev.filter(msg => !msg.id.startsWith('search-status-')));
+            
+            let summary = response.text; // Default to full text if parsing fails
+            let sources: Source[] = [];
+            
+            try {
+                let jsonString = response.text.trim();
+                const jsonMatch = jsonString.match(/```json\s*([\s\S]*?)\s*```/);
+                if (jsonMatch && jsonMatch[1]) {
+                    jsonString = jsonMatch[1];
+                }
+
+                const result = JSON.parse(jsonString);
+                
+                if (result.summary && typeof result.summary === 'string') {
+                    summary = result.summary;
+                }
+                if (result.sources && Array.isArray(result.sources)) {
+                    sources = result.sources.filter(s => s.uri && s.title && s.snippet);
+                }
+            } catch (e) {
+                console.warn("Failed to parse JSON from search result, using fallback.", e);
+                // JSON parsing failed, use grounding chunks as a fallback for sources.
+                const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+                sources = groundingChunks
+                    .map(chunk => chunk.web)
+                    .filter((web): web is { uri: string; title: string; } => !!web && !!web.uri)
+                    .map(web => ({ uri: web.uri, title: web.title || web.uri }));
+            }
+
+            if (sources.length > 0) {
+                 setConversation(prev => {
+                    const newConversation = [...prev];
+                    const aiTurnIndex = newConversation.findIndex(msg => msg.id === turnId);
+                    if (aiTurnIndex !== -1) {
+                        newConversation[aiTurnIndex].sources = [...(newConversation[aiTurnIndex].sources || []), ...sources];
+                    } else {
+                        // This case might happen if turn hasn't been created yet.
+                        newConversation.push({ id: turnId, sender: Sender.AI, text: '', sources });
+                    }
+                    return newConversation;
+                });
+            }
+            return summary;
+        } catch (error) {
+            console.error("La recherche de sources a échoué:", error);
+            setConversation(prev => [...prev.filter(msg => !msg.id.startsWith('search-status-')), { id: `search-error-${Date.now()}`, sender: Sender.System, text: `Échec de la recherche de sources.` }]);
+            return "Désolé, une erreur est survenue lors de la recherche d'informations.";
+        }
+    };
+
 
     const generateImage = useCallback(async (prompt: string, turnId: string) => {
         setStatus('THINKING');
@@ -246,7 +250,6 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
 
     const stopConversation = useCallback(async () => {
         const finalMessages = conversationRef.current;
-        const activeId = activeConversationIdRef.current;
         
         setStatus('IDLE');
         setCurrentInputTranscription('');
@@ -273,11 +276,11 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
         if (mediaStreamSourceRef.current) { mediaStreamSourceRef.current.disconnect(); mediaStreamSourceRef.current = null; }
         if (mediaStreamRef.current) { mediaStreamRef.current.getTracks().forEach(track => track.stop()); mediaStreamRef.current = null; }
         
-        if (activeId && finalMessages.length > 0) {
-             saveConversation(activeId, finalMessages);
+        if (finalMessages.length > 0) {
+             onSaveConversation(conversationData.id, finalMessages);
         }
 
-    }, [saveConversation]);
+    }, [onSaveConversation, conversationData.id]);
 
     const endSessionPolitely = useCallback(async () => {
         if (isEndingRef.current) return;
@@ -340,8 +343,8 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
             const liveConfig: any = {
                 responseModalities: [Modality.AUDIO],
                 speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: aiVoice } } },
-                systemInstruction: "Vous êtes TerranoGyneco, un assistant IA médical expert en gynécologie et médecine générale pour un médecin. Écoutez avec une extrême patience, même si les questions sont longues ou hésitantes. Prenez toujours en compte la dernière correction de l'utilisateur. Adoptez un ton calme, humain et réfléchi. Vos réponses doivent être d'une précision clinique irréprochable. Soyez prêt à être interrompu ; si le médecin recommence à parler, arrêtez-vous immédiatement et écoutez. Pour toute demande d'image, utilisez l'outil `generate_medical_illustration`.",
-                tools: [{ functionDeclarations: [generateMedicalIllustrationFunction] }],
+                systemInstruction: "Vous êtes TerranoGyneco, un assistant IA expert en gynécologie pour un médecin. Écoutez patiemment. Si une question nécessite des données factuelles, des études récentes ou des références, utilisez l'outil `search_professional_sources`. Pour les demandes d'images, utilisez `generate_medical_illustration`. Soyez prêt à être interrompu ; si le médecin parle, arrêtez-vous et écoutez.",
+                tools: [{ functionDeclarations: [generateMedicalIllustrationFunction, searchProfessionalSourcesFunction] }],
             };
             if (isTranscriptionEnabled) { liveConfig.inputAudioTranscription = {}; liveConfig.outputAudioTranscription = {}; }
 
@@ -376,9 +379,9 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
                                 const userMessage: ChatMessage = { id: `user-${Date.now()}`, sender: Sender.User, text: tempInput.trim() };
                                 setConversation(prev => {
                                     const newConversation = [...prev, userMessage];
-                                    if (newConversation.length === 1 && activeConversationIdRef.current) {
+                                    if (newConversation.length === 1 && conversationData.title === "Nouvelle Conversation") {
                                         const newTitle = userMessage.text.split(' ').slice(0, 5).join(' ') + (userMessage.text.split(' ').length > 5 ? '...' : '');
-                                        renameConversation(activeConversationIdRef.current, newTitle);
+                                        onRenameConversation(conversationData.id, newTitle);
                                     }
                                     return newConversation;
                                 });
@@ -431,7 +434,11 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
                             for (const fc of message.toolCall.functionCalls) {
                                 if (fc.name === 'generate_medical_illustration' && fc.args.prompt) {
                                     await generateImage(fc.args.prompt, aiTurnId);
-                                    sessionPromiseRef.current?.then(session => session.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: { result: "OK" } } }));
+                                    sessionPromiseRef.current?.then(session => session.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: { result: "OK, l'illustration a été générée et est maintenant visible." } } }));
+                                }
+                                if (fc.name === 'search_professional_sources' && fc.args.query) {
+                                    const searchResult = await executeSearch(fc.args.query, aiTurnId);
+                                    sessionPromiseRef.current?.then(session => session.sendToolResponse({ functionResponses: { id: fc.id, name: fc.name, response: { result: searchResult } } }));
                                 }
                             }
                         }
@@ -441,7 +448,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
                 },
             });
         } catch (error) { console.error('Échec du démarrage de la conversation:', error); setStatus('ERROR'); }
-    }, [aiVoice, isTranscriptionEnabled, micSensitivity, endSessionPolitely, generateImage, renameConversation]);
+    }, [aiVoice, isTranscriptionEnabled, micSensitivity, endSessionPolitely, generateImage, onRenameConversation, conversationData.id, conversationData.title]);
     
     useEffect(() => () => { stopConversation(); }, [stopConversation]);
 
@@ -455,7 +462,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
         switch(status){
             case 'IDLE': return 'Appuyez pour démarrer la conversation';
             case 'LISTENING': return 'Écoute...';
-            case 'THINKING': return 'Réflexion...';
+            case 'THINKING': return 'Recherche...';
             case 'SPEAKING': return 'Parle...';
             case 'ERROR': return 'Erreur. Appuyez pour redémarrer.';
             default: return '';
@@ -477,16 +484,18 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
                 aiVoice={aiVoice}
                 onAiVoiceChange={setAiVoice}
                 onClearCache={handleClearCache}
+                theme={theme}
+                onThemeChange={setTheme}
             />
             <HistoryPanel
                 isOpen={isHistoryOpen}
                 onClose={() => setIsHistoryOpen(false)}
                 conversations={allConversations}
-                activeConversationId={activeConversationId}
-                onLoadConversation={loadConversation}
-                onNewConversation={() => startNewConversation(allConversations)}
-                onRenameConversation={renameConversation}
-                onDeleteConversation={deleteConversation}
+                activeConversationId={conversationData.id}
+                onLoadConversation={onLoadConversation}
+                onNewConversation={onStartNewConversation}
+                onRenameConversation={onRenameConversation}
+                onDeleteConversation={onDeleteConversation}
             />
             <ImageZoomModal imageUrl={zoomedImageUrl} onClose={() => setZoomedImageUrl(null)} />
              <main className="flex-1 flex flex-col overflow-hidden relative z-0" style={{backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1587327901593-3701363675a8')", backgroundSize: 'cover', backgroundPosition: 'center'}}>
@@ -497,7 +506,7 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
                     onImageClick={setZoomedImageUrl}
                     onDeleteMessage={handleDeleteMessage}
                 />
-                <footer className="w-full p-4 bg-white/50 backdrop-blur-sm border-t border-gray-200">
+                <footer className="w-full p-4 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm border-t border-gray-200 dark:border-gray-800">
                     <div className="max-w-5xl mx-auto flex flex-col items-center gap-3">
                         <div className="relative h-20 w-20">
                             <button
@@ -507,10 +516,11 @@ const ChatPage: React.FC<ChatPageProps> = ({ isSettingsOpen, setIsSettingsOpen, 
                                 disabled={isEnding}
                             >
                                {status === 'LISTENING' && <div className="absolute w-full h-full bg-pink-400 rounded-full animate-ping"></div>}
+                               {status === 'THINKING' && <div className="absolute w-full h-full bg-blue-400 rounded-full animate-ping"></div>}
                                {!isConversationActive ? <MicIcon className="w-8 h-8" /> : <StopIcon className="w-8 h-8"/>}
                             </button>
                         </div>
-                        <p className="text-gray-600 font-medium h-5 transition-opacity duration-300">
+                        <p className="text-gray-800 dark:text-gray-300 font-medium h-5 transition-opacity duration-300">
                             {autoSaveStatus || getStatusText()}
                         </p>
                     </div>

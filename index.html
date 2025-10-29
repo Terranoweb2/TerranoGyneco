@@ -6,14 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TerranoGyneco</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class'
+      }
+    </script>
   <script type="importmap">
 {
   "imports": {
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"
+    "react": "https://aistudiocdn.com/react@^19.2.0"
   }
 }
 </script>
@@ -26,6 +30,9 @@
     display: inline-block;
     margin: 0 3px;
     animation: typing-blink 1.4s infinite both;
+  }
+  .dark .typing-indicator span {
+    background-color: #6b7280; /* gray-500 */
   }
   .typing-indicator span:nth-child(2) {
     animation-delay: 0.2s;

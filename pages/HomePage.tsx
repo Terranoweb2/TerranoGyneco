@@ -1,51 +1,29 @@
 import React from 'react';
 
-const UterusIcon = () => (
-  <img
-    src="https://res.cloudinary.com/dxy0fiahv/image/upload/v1760883038/logo_Dr-T_sqgqy5.png"
-    alt="TerranoGyneco Logo"
-    className="w-16 h-16 object-contain"
-  />
-);
-
-
 interface HomePageProps {
-    navigate: (path: string) => void;
+  onStart: () => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ navigate }) => {
-    return (
-         <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
-            <div className="text-center max-w-2xl">
-                <div className="flex justify-center mb-6">
-                    <UterusIcon />
-                </div>
-                <h1 className="text-4xl md:text-5xl font-extrabold text-gray-800">
-                    Bienvenue sur Terrano<span className="text-pink-600">Gyneco</span>
-                </h1>
-                <p className="mt-4 text-lg md:text-xl text-gray-600">
-                    L'assistant IA de pointe, réservé aux gynécologues. Dialoguez avec une intelligence artificielle spécialisée pour des réponses précises et illustrées à vos questions cliniques.
-                </p>
-                <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4 w-full max-w-xs sm:max-w-none mx-auto">
-                    <button 
-                        onClick={() => navigate('#/login')}
-                        className="w-full sm:w-auto px-8 py-3 bg-pink-500 text-white font-semibold rounded-lg shadow-md hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75 transition-transform transform hover:scale-105"
-                    >
-                        Se Connecter
-                    </button>
-                    <button 
-                         onClick={() => navigate('#/signup')}
-                         className="w-full sm:w-auto px-8 py-3 bg-white text-pink-500 font-semibold rounded-lg shadow-md border border-pink-200 hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75 transition-transform transform hover:scale-105"
-                    >
-                        Créer un compte
-                    </button>
-                </div>
-                 <p className="mt-8 text-sm text-gray-500">
-                    L'accès est réservé aux professionnels de la santé.
-                </p>
-            </div>
-        </div>
-    );
+const HomePage: React.FC<HomePageProps> = ({ onStart }) => {
+  return (
+    <main className="flex-1 flex flex-col items-center justify-center text-center text-white p-4" style={{backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('https://images.unsplash.com/photo-1587327901593-3701363675a8')", backgroundSize: 'cover', backgroundPosition: 'center'}}>
+      <div className="bg-black/40 backdrop-blur-md p-8 sm:p-12 rounded-2xl shadow-2xl max-w-2xl w-full">
+        <img src="https://res.cloudinary.com/dxy0fiahv/image/upload/v1760883038/logo_Dr-T_sqgqy5.png" alt="Logo TerranoGyneco" className="w-28 h-28 mb-6 mx-auto" />
+        <h1 className="text-4xl sm:text-5xl font-bold mb-4">
+            Terrano<span className="text-pink-400">Gyneco</span>
+        </h1>
+        <p className="text-lg sm:text-xl text-white/90 mt-2 max-w-lg mx-auto">
+          Votre assistant IA spécialisé en gynécologie. Prêt à répondre à vos questions les plus complexes avec précision et rapidité.
+        </p>
+        <button
+          onClick={onStart}
+          className="mt-8 px-8 py-4 bg-pink-600 text-white font-bold text-lg rounded-full shadow-lg hover:bg-pink-700 focus:outline-none focus:ring-4 focus:ring-pink-500/50 transform hover:scale-105 transition-all duration-300 ease-in-out"
+        >
+          Commencer la conversation
+        </button>
+      </div>
+    </main>
+  );
 };
 
 export default HomePage;
